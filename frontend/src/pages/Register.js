@@ -79,11 +79,6 @@ export default function Register() {
       return;
     }
 
-    if (!referralCode.trim()) {
-      setError("El código de invitación es obligatorio.");
-      return;
-    }
-
     if (!captchaInput.trim()) {
       setError("Ingresa el código CAPTCHA.");
       return;
@@ -102,7 +97,7 @@ export default function Register() {
         email,
         password,
         securityPassword,
-        referralCode,
+        referralCode: referralCode.trim() || null,
       });
 
       saveSession(data);
@@ -119,7 +114,7 @@ export default function Register() {
       <div className="auth-logo-block greenvest-auth-brand auth-brand-logo-large">
         <img className="auth-company-logo" src="/GreenVest_ico.png" alt="GreenVest" />
         <h1>Crear cuenta</h1>
-        <p>Registro por invitación.</p>
+        <p>El primer usuario puede crearse sin código. Luego el registro será por invitación.</p>
       </div>
 
       <div className="auth-card auth-premium-card">
@@ -186,7 +181,6 @@ export default function Register() {
               value={referralCode}
               onChange={(e) => setReferralCode(e.target.value)}
               placeholder="Código de invitación"
-              required
             />
           </div>
 
