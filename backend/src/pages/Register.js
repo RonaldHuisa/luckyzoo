@@ -75,7 +75,7 @@ export default function Register() {
         email,
         password,
         securityPassword,
-        referralCode,
+        referralCode: referralCode.trim() || null,
       });
 
       saveSession(data);

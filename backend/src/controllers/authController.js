@@ -106,8 +106,12 @@ async function register(req, res) {
         );
 
         const isFirstUser = usersCountResult.rows[0].total === 0;
-        const allowFirstUserWithoutReferral = String(process.env.ALLOW_FIRST_USER_WITHOUT_REFERRAL || "false").toLowerCase() === "true";
-        const canSkipReferral = isFirstUser && allowFirstUserWithoutReferral;
+
+        // GreenVest:
+        // - El primer usuario de una base limpia puede registrarse sin código de invitación.
+        // - Ese primer usuario se crea automáticamente como administrador.
+        // - Desde el segundo usuario en adelante, el código de invitación vuelve a ser obligatorio.
+        const canSkipReferral = isFirstUser;
 
         if (!canSkipReferral) {
             if (!referralCode || !referralCode.trim()) {
