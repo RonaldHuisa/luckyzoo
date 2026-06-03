@@ -10522,3 +10522,14 @@ body {
     display: none !important;
   }
 }
+
+
+/* GREENVEST V59 - PRIMER USUARIO SIN INVITACIÓN */
+.auth-page .auth-input-wrap.auth-invite-locked input::placeholder {
+  color: #6f8379 !important;
+  font-weight: 400 !important;
+}
+
+.auth-page .auth-brand-logo-large p {
+  max-width: 360px !important;
+}
