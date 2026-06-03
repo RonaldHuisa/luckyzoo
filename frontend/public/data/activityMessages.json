@@ -1,0 +1,47 @@
+{
+  "domains": [
+    "gmail.com",
+    "outlook.com",
+    "hotmail.com"
+  ],
+  "statuses": [
+    "retiró $7.00",
+    "retiró $20.00",
+    "retiró $72.00",
+    "retiró $129.00",
+    "retiró $420.00",
+    "retiró $1160.00",
+    "retiró $3000.00",
+    "recargó $9.00",
+    "recargó $60.00",
+    "recargó $560.00",
+    "recargó $960.00"
+  ],
+  "emailPrefixes": [
+    "lu",
+    "mi",
+    "ke",
+    "an",
+    "so",
+    "la",
+    "ma",
+    "jo",
+    "al",
+    "de",
+    "ri",
+    "pa",
+    "se",
+    "va",
+    "ni",
+    "ca",
+    "g2",
+    "h5",
+    "t4",
+    "p0",
+    "te",
+    "ma",
+    "m.",
+    "c_",
+    "a_"
+  ]
+}
