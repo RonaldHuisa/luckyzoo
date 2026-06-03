@@ -38,8 +38,8 @@ const allowedOrigins = [
   "http://127.0.0.1:3005",
   "http://127.0.0.1:3100",
   "https://greenvest-platform.onrender.com",
-  "https://yunxhi.vip",
-  "https://www.yunxhi.vip",
+  "https://greenvest.lat",
+  "https://www.greenvest.lat",
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
