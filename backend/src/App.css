@@ -10533,3 +10533,17 @@ body {
 .auth-page .auth-brand-logo-large p {
   max-width: 360px !important;
 }
+
+
+/* GREENVEST V62 - COPY DE REGISTRO PROFESIONAL */
+.auth-page .auth-brand-logo-large p {
+  max-width: 310px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  line-height: 1.35 !important;
+}
+
+.auth-page .auth-input-wrap.auth-invite-locked input::placeholder {
+  color: #6f8379 !important;
+  font-weight: 400 !important;
+}
