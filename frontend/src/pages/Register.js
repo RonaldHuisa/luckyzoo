@@ -114,7 +114,7 @@ export default function Register() {
       <div className="auth-logo-block greenvest-auth-brand auth-brand-logo-large">
         <img className="auth-company-logo" src="/GreenVest_ico.png" alt="GreenVest" />
         <h1>Crear cuenta</h1>
-        <p>El primer usuario puede crearse sin código. Luego el registro será por invitación.</p>
+        <p>Completa tus datos para acceder a GreenVest.</p>
       </div>
 
       <div className="auth-card auth-premium-card">
@@ -180,7 +180,7 @@ export default function Register() {
               className="auth-input"
               value={referralCode}
               onChange={(e) => setReferralCode(e.target.value)}
-              placeholder="Código de invitación"
+              placeholder="Código de invitación (opcional)"
             />
           </div>
 
