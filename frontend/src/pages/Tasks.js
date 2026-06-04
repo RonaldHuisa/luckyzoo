@@ -195,6 +195,14 @@ export default function Tasks() {
           </div>
         </div>
       )}
+      {loading && (
+        <div className="garden-loading-overlay">
+          <div className="garden-loading-popup">
+            <span className="garden-loading-spinner" />
+            <strong>{t("Cargando...")}</strong>
+          </div>
+        </div>
+      )}
       <header className="mining-header">
         <div className="mining-brand">
           <div className="mining-logo mining-logo-image"><img className="water-ui-icon water-ui-icon-header" src="/water-icon.png" alt="Agua" /></div>
@@ -209,9 +217,7 @@ export default function Tasks() {
       </header>
 
       <section className="mining-main-card tree-water-dashboard">
-        {loading ? (
-          <div className="mining-loading">{t("Cargando agua...")}</div>
-        ) : (
+        {loading ? null : (
           <>
             <div className="tree-water-summary-top tree-water-summary-top-simple">
               <div>

@@ -30638,3 +30638,79 @@ body,
 .auth-page .auth-brand-logo-large p {
   max-width: 360px !important;
 }
+
+
+/* =========================================================
+   GREENVEST V60 - JARDÍN LOADING POPUP FLUIDO
+========================================================= */
+
+.trees-task-page .mining-loading {
+  display: none !important;
+}
+
+.garden-loading-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1400 !important;
+  display: grid !important;
+  place-items: center !important;
+  background: rgba(0, 0, 0, 0.18) !important;
+  backdrop-filter: blur(2px) !important;
+  animation: gardenLoadingFadeIn 0.18s ease both !important;
+  pointer-events: auto !important;
+}
+
+.garden-loading-popup {
+  min-width: 148px !important;
+  min-height: 52px !important;
+  padding: 13px 18px !important;
+  border-radius: 14px !important;
+  background: rgba(7, 16, 14, 0.78) !important;
+  color: #ffffff !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 11px !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  box-shadow: 0 16px 36px rgba(0,0,0,0.20) !important;
+  transform-origin: center !important;
+  animation: gardenLoadingPop 0.22s ease both !important;
+}
+
+.garden-loading-popup strong {
+  color: #ffffff !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+  text-shadow: none !important;
+}
+
+.garden-loading-spinner {
+  width: 18px !important;
+  height: 18px !important;
+  border-radius: 999px !important;
+  border: 2px solid rgba(255,255,255,0.32) !important;
+  border-top-color: #ffffff !important;
+  animation: gardenLoadingSpin 0.85s linear infinite !important;
+}
+
+@keyframes gardenLoadingFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes gardenLoadingPop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes gardenLoadingSpin {
+  to { transform: rotate(360deg); }
+}
