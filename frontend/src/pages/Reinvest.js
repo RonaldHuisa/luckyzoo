@@ -147,6 +147,14 @@ export default function Reinvest() {
 
   return (
     <div className="page reinvest-page">
+      {loading && (
+        <div className="garden-loading-overlay app-loading-overlay">
+          <div className="garden-loading-popup app-loading-popup">
+            <span className="garden-loading-spinner" />
+            <strong>{t("Cargando...")}</strong>
+          </div>
+        </div>
+      )}
       <div className="reinvest-header">
         <button type="button" onClick={() => navigate(-1)}>
           <FiArrowLeft />

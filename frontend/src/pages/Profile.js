@@ -34,6 +34,7 @@ export default function Profile() {
   const { t } = useI18n();
   const [user] = useState(() => getUser());
   const [vipData, setVipData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
   const [showPasswordPanel, setShowPasswordPanel] = useState(false);
   const [showSupportPanel, setShowSupportPanel] = useState(false);
@@ -54,10 +55,13 @@ export default function Profile() {
 
     async function loadVipStatus() {
       try {
+        setLoading(true);
         const result = await getVipStatus();
         if (mounted) setVipData(result);
       } catch (error) {
         if (mounted) setVipData(null);
+      } finally {
+        if (mounted) setLoading(false);
       }
     }
 

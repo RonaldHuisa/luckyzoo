@@ -124,6 +124,7 @@ export default function Home() {
   const [earningsWallet, setEarningsWallet] = useState(0);
   const [currentLevel, setCurrentLevel] = useState("");
   const [loadError, setLoadError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [referralLink, setReferralLink] = useState(`${window.location.origin}/register`);
   const [pointLogs, setPointLogs] = useState(() => getRandomPointsLog());
   const [pointStartIndex, setPointStartIndex] = useState(0);
@@ -155,6 +156,8 @@ export default function Home() {
     } catch (error) {
       console.error("GREENVEST HOME ERROR:", error);
       setLoadError(error.message || "No se pudo cargar GreenVest");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -376,6 +379,14 @@ export default function Home() {
 
   return (
     <div className="page runpod-home-page">
+      {loading && (
+        <div className="garden-loading-overlay app-loading-overlay">
+          <div className="garden-loading-popup app-loading-popup">
+            <span className="garden-loading-spinner" />
+            <strong>{t("Cargando...")}</strong>
+          </div>
+        </div>
+      )}
       {installToast && (
         <div className="home-install-toast">
           <span>{installToast}</span>

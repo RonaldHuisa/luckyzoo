@@ -94,6 +94,14 @@ export default function Promotion() {
 
   return (
     <div className="page promotion-page team-garden-page team-garden-page-v5">
+      {loading && (
+        <div className="garden-loading-overlay app-loading-overlay">
+          <div className="garden-loading-popup app-loading-popup">
+            <span className="garden-loading-spinner" />
+            <strong>{t("Cargando...")}</strong>
+          </div>
+        </div>
+      )}
       {toast && (
         <div className="success-toast">
           <strong>{toast}</strong>

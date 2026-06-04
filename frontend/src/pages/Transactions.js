@@ -71,6 +71,14 @@ export default function Transactions() {
 
   return (
     <div className="page transactions-page">
+      {loading && (
+        <div className="garden-loading-overlay app-loading-overlay">
+          <div className="garden-loading-popup app-loading-popup">
+            <span className="garden-loading-spinner" />
+            <strong>{t("Cargando...")}</strong>
+          </div>
+        </div>
+      )}
       <div className="recharge-header">
         <button className="icon-btn" onClick={() => navigate(-1)}>
           <FiArrowLeft />
@@ -107,7 +115,7 @@ export default function Transactions() {
         <span className="soft-pill">50</span>
       </div>
 
-      {loading && <div className="panel">{t("Cargando historial...")}</div>}
+      {loading ? null : null}
 
       {!loading && transactions.length === 0 && (
         <div className="empty-history">{t("No hay movimientos para mostrar.")}</div>

@@ -245,6 +245,14 @@ export default function Withdraw() {
 
   return (
     <div className="page withdraw-exact-page">
+      {loading && (
+        <div className="garden-loading-overlay app-loading-overlay">
+          <div className="garden-loading-popup app-loading-popup">
+            <span className="garden-loading-spinner" />
+            <strong>{t("Cargando...")}</strong>
+          </div>
+        </div>
+      )}
       {toast && (
         <div className="center-simple-toast center-simple-toast-info">
           <span>{toast}</span>

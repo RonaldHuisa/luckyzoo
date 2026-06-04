@@ -70,6 +70,14 @@ export default function Vip() {
 
   return (
     <div className="page mining-plans-page trees-page">
+      {loading && (
+        <div className="garden-loading-overlay app-loading-overlay">
+          <div className="garden-loading-popup app-loading-popup">
+            <span className="garden-loading-spinner" />
+            <strong>{t("Cargando...")}</strong>
+          </div>
+        </div>
+      )}
       <header className="mining-header">
         <div className="mining-brand">
           <div className="mining-logo">🌳</div>
@@ -108,7 +116,6 @@ export default function Vip() {
       </section>
 
       <section className="tree-plan-list">
-        {loading && <div className="mining-empty">{t("Cargando árboles...")}</div>}
         {!loading && (data?.packages || []).map((plan) => {
           const level = Number(plan.level);
           const isFree = level === 0;

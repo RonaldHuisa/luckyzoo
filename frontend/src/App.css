@@ -30714,3 +30714,53 @@ body,
 @keyframes gardenLoadingSpin {
   to { transform: rotate(360deg); }
 }
+
+
+/* =========================================================
+   GREENVEST V61 - LOADING HOMOGÉNEO EN TODAS LAS PANTALLAS
+========================================================= */
+
+.app-loading-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1600 !important;
+  display: grid !important;
+  place-items: center !important;
+  background: rgba(0, 0, 0, 0.18) !important;
+  backdrop-filter: blur(2px) !important;
+  animation: gardenLoadingFadeIn 0.18s ease both !important;
+  pointer-events: auto !important;
+}
+
+.app-loading-popup {
+  min-width: 148px !important;
+  min-height: 52px !important;
+  padding: 13px 18px !important;
+  border-radius: 14px !important;
+  background: rgba(7, 16, 14, 0.78) !important;
+  color: #ffffff !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 11px !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  box-shadow: 0 16px 36px rgba(0,0,0,0.20) !important;
+  transform-origin: center !important;
+  animation: gardenLoadingPop 0.22s ease both !important;
+}
+
+.app-loading-popup strong {
+  color: #ffffff !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+  text-shadow: none !important;
+}
+
+.deposit-detail-loading,
+.mining-empty:has(+ .tree-side-card),
+.promo-event-loading,
+.hash-rewards-loading {
+  display: none !important;
+}

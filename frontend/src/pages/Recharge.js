@@ -186,6 +186,14 @@ export default function Recharge() {
 
   return (
     <div className="page recharge-simple-page">
+      {loading && (
+        <div className="garden-loading-overlay app-loading-overlay">
+          <div className="garden-loading-popup app-loading-popup">
+            <span className="garden-loading-spinner" />
+            <strong>{t("Cargando...")}</strong>
+          </div>
+        </div>
+      )}
       {toast && (
         <div className={`center-simple-toast center-simple-toast-${toastType}`}>
           <span>{toast}</span>
@@ -256,9 +264,7 @@ export default function Recharge() {
             <strong>{currentNetwork.label}</strong>
           </div>
 
-          {loading ? (
-            <div className="deposit-detail-loading">{t("Cargando dirección de depósito...")}</div>
-          ) : (
+          {loading ? null : (
             <>
               {error && <div className="auth-error recharge-error-inline">{error}</div>}
 
