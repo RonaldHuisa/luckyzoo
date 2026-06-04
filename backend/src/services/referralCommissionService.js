@@ -1,34 +1,16 @@
 const { ensureGreenVestTreeSchema } = require("./greenVestTreeService");
 
-async function createReferralCommissions(
-  client,
-  sourceUserId,
-  sourceType,
-  sourceId,
-  baseAmountUsdt,
-  options = {}
-) {
-  // GreenVest Árboles V1.0:
-  // - Comisión directa única: 5%.
-  // - Nivel 0 / Pasantía no genera comisión.
-  // - Si el patrocinador tiene un nivel menor al comprado por el referido,
-  //   solo cobra comisión sobre el precio del nivel máximo que él haya comprado.
-  await ensureGreenVestTreeSchema(client);
-
-  const sponsorResult = await client.query(
+async function getUserSponsorId(client, userId) {
+  const result = await client.query(
     `SELECT referred_by_id FROM users WHERE id = $1`,
-    [sourceUserId]
+    [userId]
   );
 
-  if (sponsorResult.rows.length === 0) return;
+  return result.rows[0]?.referred_by_id || null;
+}
 
-  const sponsorId = sponsorResult.rows[0].referred_by_id;
-  if (!sponsorId) return;
-
-  const purchasedLevel = Number(options.purchasedLevel || 0);
-  if (purchasedLevel < 1) return;
-
-  const sponsorLevelResult = await client.query(
+async function getSponsorMaxLevel(client, sponsorId) {
+  const result = await client.query(
     `
     SELECT COALESCE(MAX(level), 0)::int AS max_level
     FROM vip_purchases
@@ -39,23 +21,39 @@ async function createReferralCommissions(
     [sponsorId]
   );
 
-  const sponsorMaxLevel = Number(sponsorLevelResult.rows[0]?.max_level || 0);
-  if (sponsorMaxLevel < 1) return;
+  return Number(result.rows[0]?.max_level || 0);
+}
 
-  const commissionableLevel = Math.min(purchasedLevel, sponsorMaxLevel);
-
-  const planResult = await client.query(
+async function getCommissionPlan(client, level) {
+  const result = await client.query(
     `SELECT level, name, price_usdt FROM vip_packages WHERE level = $1`,
-    [commissionableLevel]
+    [level]
   );
 
-  if (planResult.rows.length === 0) return;
+  return result.rows[0] || null;
+}
 
-  const commissionPlan = planResult.rows[0];
+async function createSingleReferralCommission({
+  client,
+  receiverUserId,
+  sourceUserId,
+  sourceType,
+  sourceId,
+  referralDepth,
+  purchasedLevel,
+  sponsorMaxLevel,
+  baseAmountUsdt,
+}) {
+  const commissionableLevel = Math.min(purchasedLevel, sponsorMaxLevel);
+  if (commissionableLevel < 1) return;
+
+  const commissionPlan = await getCommissionPlan(client, commissionableLevel);
+  if (!commissionPlan) return;
+
   const commissionBaseAmount = Number(commissionPlan.price_usdt || 0);
-  const percent = 5;
-
   if (commissionBaseAmount <= 0) return;
+
+  const percent = referralDepth === 1 ? 8 : 1;
 
   const commissionResult = await client.query(
     `
@@ -71,14 +69,15 @@ async function createReferralCommissions(
       amount_usdt
     )
     VALUES
-    ($1,$2,1,$3,$4,$5,$6,($5::numeric * $6::numeric / 100))
+    ($1,$2,$3,$4,$5,$6,$7,($6::numeric * $7::numeric / 100))
     ON CONFLICT (receiver_user_id, source_type, source_id, level)
     DO NOTHING
     RETURNING id, amount_usdt
     `,
     [
-      sponsorId,
+      receiverUserId,
       sourceUserId,
+      referralDepth,
       sourceType,
       sourceId,
       commissionBaseAmount,
@@ -97,7 +96,7 @@ async function createReferralCommissions(
         earnings_balance_usdt = COALESCE(earnings_balance_usdt, 0) + $1
     WHERE id = $2
     `,
-    [commission.amount_usdt, sponsorId]
+    [commission.amount_usdt, receiverUserId]
   );
 
   await client.query(
@@ -120,17 +119,17 @@ async function createReferralCommissions(
     ON CONFLICT DO NOTHING
     `,
     [
-      sponsorId,
+      receiverUserId,
       "earnings",
       "credit",
       "referral_commission",
-      "Comisión directa GreenVest",
+      referralDepth === 1 ? "Comisión directa GreenVest" : `Comisión indirecta Nivel ${referralDepth} GreenVest`,
       commission.amount_usdt,
-      `Comisión del 5% sobre ${commissionPlan.name}. Nivel comprador: ${purchasedLevel}. Nivel máximo del patrocinador: ${sponsorMaxLevel}.`,
+      `${percent}% sobre ${commissionPlan.name}. Nivel comprador: ${purchasedLevel}. Nivel máximo del receptor: ${sponsorMaxLevel}.`,
       "referral_commission",
       commission.id,
       JSON.stringify({
-        referralDepth: 1,
+        referralDepth,
         sourceUserId,
         sourceType,
         sourceId,
@@ -145,6 +144,53 @@ async function createReferralCommissions(
       "completed",
     ]
   );
+}
+
+async function createReferralCommissions(
+  client,
+  sourceUserId,
+  sourceType,
+  sourceId,
+  baseAmountUsdt,
+  options = {}
+) {
+  // GreenVest comisiones:
+  // - Nivel 1/directo: 8%.
+  // - Nivel 2 e indirecto Nivel 3: 1% cada uno.
+  // - Nivel 0 / Pasantía no genera comisión.
+  // - Para cobrar, el receptor debe tener al menos una planta VIP comprada.
+  // - Si el referido compra una planta más alta que el receptor,
+  //   la comisión se calcula solo hasta el nivel máximo comprado por el receptor.
+  await ensureGreenVestTreeSchema(client);
+
+  const purchasedLevel = Number(options.purchasedLevel || 0);
+  if (purchasedLevel < 1) return;
+
+  let currentSourceUserId = sourceUserId;
+
+  for (let depth = 1; depth <= 3; depth += 1) {
+    const receiverUserId = await getUserSponsorId(client, currentSourceUserId);
+
+    if (!receiverUserId) break;
+
+    const sponsorMaxLevel = await getSponsorMaxLevel(client, receiverUserId);
+
+    if (sponsorMaxLevel >= 1) {
+      await createSingleReferralCommission({
+        client,
+        receiverUserId,
+        sourceUserId,
+        sourceType,
+        sourceId,
+        referralDepth: depth,
+        purchasedLevel,
+        sponsorMaxLevel,
+        baseAmountUsdt,
+      });
+    }
+
+    currentSourceUserId = receiverUserId;
+  }
 }
 
 module.exports = {
