@@ -160,7 +160,7 @@ export default function Register() {
               className="auth-input"
               value={referralCode}
               onChange={(e) => setReferralCode(e.target.value)}
-              placeholder="Código de invitación"
+              placeholder="Código de invitación (opcional)"
               readOnly
             />
           </div>
