@@ -30778,3 +30778,13 @@ body,
   color: #6f8379 !important;
   font-weight: 400 !important;
 }
+
+
+/* GREENVEST V64 - PASANTÍA FIN DE SEMANA */
+.garden-clock-card small {
+  display: block;
+  margin-top: 3px;
+  font-size: 10.5px;
+  line-height: 1.25;
+  opacity: 0.82;
+}

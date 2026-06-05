@@ -142,11 +142,11 @@ export default function Tasks() {
   }, [now, cooldownTasks, loadTasks]);
 
   const handleWater = async (task) => {
-    if (gardenClock.blocked) {
+    if (gardenClock.blocked && !task?.isFree) {
       setWaterPopup({
         type: "error",
-        title: t("Jardín en descanso"),
-        description: t("Los fines de semana el jardín descansa."),
+        title: t("Planta en descanso"),
+        description: t("Las plantas de Nivel 1 o más se riegan de lunes a viernes. La Pasantía sí puede regarse fines de semana."),
       });
       return;
     }
@@ -251,6 +251,7 @@ export default function Tasks() {
         <div>
           <span>{t("Hora Jardín")}</span>
           <strong data-no-translate="true">{gardenClock.dayName} · {gardenClock.hour} UTC</strong>
+          {gardenClock.blocked && <small>{t("Pasantía disponible. Nivel 1 o más vuelve de lunes a viernes.")}</small>}
         </div>
       </section>
 
@@ -272,7 +273,8 @@ export default function Tasks() {
             {orderedTasks.map((task) => {
               const remainingMs = getRemaining(task, now);
               const isAvailable = task.status === "available" || remainingMs <= 0;
-              const canWater = isAvailable && !gardenClock.blocked;
+              const isPaidWeekendBlocked = gardenClock.blocked && !task.isFree;
+              const canWater = isAvailable && !isPaidWeekendBlocked;
               const progress = getProgress(task, now);
 
               return (
@@ -291,9 +293,9 @@ export default function Tasks() {
                   </div>
 
                   <div className="tree-water-ordered-main">
-                    {gardenClock.blocked && isAvailable && (
+                    {isPaidWeekendBlocked && isAvailable && (
                       <div className="tree-water-rest-note">
-                        {t("Jardín en descanso.")}
+                        {t("Nivel 1 o más: disponible de lunes a viernes. Pasantía disponible fines de semana.")}
                       </div>
                     )}
                     <div className="tree-water-ordered-head">
@@ -317,8 +319,8 @@ export default function Tasks() {
                     <div className="tree-water-ordered-foot">
                       <button type="button" disabled={!canWater || claimingId === task.vipPurchaseId} onClick={() => handleWater(task)}>
                         {isAvailable ? <img className="water-ui-icon water-ui-icon-btn tree-water-btn-icon" src="/water-icon.png" alt="Agua" /> : <img className="water-ui-icon water-ui-icon-btn tree-water-btn-icon" src="/water-icon.png" alt="Agua" />}
-                        {gardenClock.blocked && isAvailable
-                          ? t("Jardín en descanso")
+                        {isPaidWeekendBlocked && isAvailable
+                          ? t("Disponible lunes a viernes")
                           : claimingId === task.vipPurchaseId
                             ? t("Regando...")
                             : isAvailable
