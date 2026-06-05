@@ -25,13 +25,19 @@ const PAYMENT_NETWORKS = [
 const WITHDRAW_WINDOW = {
   startHourUtc: 16,
   endHourUtc: 20,
+  allowedDaysUtc: [1, 2, 3, 4, 5], // lunes a viernes
 };
 
 function getWithdrawSchedule(now = new Date()) {
   const hour = now.getUTCHours();
   const minute = now.getUTCMinutes();
   const second = now.getUTCSeconds();
-  const isOpen = hour >= WITHDRAW_WINDOW.startHourUtc && hour < WITHDRAW_WINDOW.endHourUtc;
+  const day = now.getUTCDay();
+  const isAllowedDay = WITHDRAW_WINDOW.allowedDaysUtc.includes(day);
+  const isOpen =
+    isAllowedDay &&
+    hour >= WITHDRAW_WINDOW.startHourUtc &&
+    hour < WITHDRAW_WINDOW.endHourUtc;
 
   const utcTime = now.toLocaleTimeString("es-ES", {
     timeZone: "UTC",
@@ -43,11 +49,13 @@ function getWithdrawSchedule(now = new Date()) {
 
   return {
     isOpen,
+    isAllowedDay,
     utcTime,
     currentHour: hour,
     currentMinute: minute,
     currentSecond: second,
     label: "16:00 - 20:00 UTC",
+    daysLabel: "Lunes a viernes",
   };
 }
 
@@ -189,7 +197,7 @@ export default function Withdraw() {
     }
 
     if (!isWithdrawWindowOpen) {
-      showToast(t("Los retiros están disponibles solo de 16:00 a 20:00 UTC."));
+      showToast(t("Los retiros están disponibles de lunes a viernes, solo de 16:00 a 20:00 UTC."));
       return;
     }
 
@@ -280,7 +288,7 @@ export default function Withdraw() {
 
       <section className={`withdraw-schedule-card ${isWithdrawWindowOpen ? "open" : "closed"}`}>
         <span>{t("Horario de retiro")}</span>
-        <strong data-no-translate="true">16:00 - 20:00 UTC</strong>
+        <strong data-no-translate="true">Lun - Vie · 16:00 - 20:00 UTC</strong>
         <small data-no-translate="true">{t("Hora actual")}: {withdrawSchedule.utcTime} UTC</small>
       </section>
 
@@ -393,7 +401,7 @@ export default function Withdraw() {
           <b>{t("Nota")}</b>
         </div>
         <p>1. {t("Retiro mínimo: 5 USDT.")}</p>
-        <p>2. {t("Horario disponible: 16:00 a 20:00 UTC, todos los días.")}</p>
+        <p>2. {t("Horario disponible: lunes a viernes, de 16:00 a 20:00 UTC.")}</p>
         <p>3. {t("Fuera del horario permitido, el botón de retiro permanecerá deshabilitado.")}</p>
         <p>4. {t("Verifica que la dirección pertenezca exactamente a la red seleccionada antes de confirmar.")}</p>
       </section>
