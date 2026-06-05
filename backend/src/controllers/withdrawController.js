@@ -25,22 +25,18 @@ const WITHDRAW_DAY_NAMES = {
     6: "sábado",
 };
 
-const WITHDRAW_SCHEDULE_BY_LEVEL = [
-    { min: 1, max: 2, days: [1, 4], label: "lunes y jueves" },
-    { min: 3, max: 4, days: [2, 5], label: "martes y viernes" },
-    { min: 5, max: Infinity, days: [3, 6], label: "miércoles y sábado" },
-];
+// GreenVest PRD: retiros disponibles todos los lunes a viernes,
+// dentro del horario 16:00 a 20:00 UTC. Ya no depende del nivel.
+const WITHDRAW_ALLOWED_DAYS = [1, 2, 3, 4, 5];
+const WITHDRAW_ALLOWED_DAYS_LABEL = "lunes a viernes";
+const WITHDRAW_WINDOW_UTC = {
+    startHour: 16,
+    endHour: 20,
+    label: "16:00 a 20:00 UTC",
+};
 
 function getUtcWeekday(date = new Date()) {
     return date.getUTCDay();
-}
-
-function getWithdrawScheduleForVipLevel(vipLevel) {
-    const level = Number(vipLevel || 0);
-
-    return WITHDRAW_SCHEDULE_BY_LEVEL.find(
-        (item) => level >= item.min && level <= item.max
-    ) || null;
 }
 
 function getNextWithdrawDayLabel(allowedDays, todayDow) {
@@ -52,44 +48,34 @@ function getNextWithdrawDayLabel(allowedDays, todayDow) {
     return WITHDRAW_DAY_NAMES[nextDow] || "";
 }
 
+function isWithdrawWindowOpen(date = new Date()) {
+    const hour = date.getUTCHours();
+
+    return hour >= WITHDRAW_WINDOW_UTC.startHour && hour < WITHDRAW_WINDOW_UTC.endHour;
+}
+
 function buildWithdrawDayPolicy(vipLevel, date = new Date()) {
     const level = Number(vipLevel || 0);
     const todayDow = getUtcWeekday(date);
-    const schedule = getWithdrawScheduleForVipLevel(level);
-
-    if (!schedule) {
-        return {
-            allowedToday: false,
-            activeVipLevel: level,
-            todayDow,
-            todayName: WITHDRAW_DAY_NAMES[todayDow],
-            allowedDays: [],
-            allowedDaysLabel: "",
-            nextWithdrawDay: "",
-            timezone: "UTC",
-            activeVipName: "Sin GreenVest activo",
-            message: "Nivel actual: sin GreenVest activo. Necesitas un nivel GreenVest activo para solicitar retiros. Horario de validación: UTC.",
-        };
-    }
-
-    const allowedToday = schedule.days.includes(todayDow);
+    const allowedToday = WITHDRAW_ALLOWED_DAYS.includes(todayDow);
     const nextWithdrawDay = allowedToday
         ? WITHDRAW_DAY_NAMES[todayDow]
-        : getNextWithdrawDayLabel(schedule.days, todayDow);
+        : getNextWithdrawDayLabel(WITHDRAW_ALLOWED_DAYS, todayDow);
 
     return {
         allowedToday,
         activeVipLevel: level,
         todayDow,
         todayName: WITHDRAW_DAY_NAMES[todayDow],
-        allowedDays: schedule.days,
-        allowedDaysLabel: schedule.label,
+        allowedDays: WITHDRAW_ALLOWED_DAYS,
+        allowedDaysLabel: WITHDRAW_ALLOWED_DAYS_LABEL,
         nextWithdrawDay,
         timezone: "UTC",
-        activeVipName: `GreenVest-${level}`,
+        scheduleLabel: WITHDRAW_WINDOW_UTC.label,
+        activeVipName: level >= 1 ? `GreenVest-${level}` : "Sin GreenVest activo",
         message: allowedToday
-            ? `Nivel actual: GreenVest-${level}. Puedes retirar los ${schedule.label} (UTC).`
-            : `Nivel actual: GreenVest-${level}. Tus retiros están disponibles los ${schedule.label} (UTC). Próximo día disponible: ${nextWithdrawDay} (UTC).`,
+            ? `Retiros disponibles de ${WITHDRAW_ALLOWED_DAYS_LABEL}, en horario ${WITHDRAW_WINDOW_UTC.label}.`
+            : `Los retiros están disponibles de ${WITHDRAW_ALLOWED_DAYS_LABEL}, en horario ${WITHDRAW_WINDOW_UTC.label}. Próximo día disponible: ${nextWithdrawDay} (UTC).`,
     };
 }
 
@@ -348,7 +334,7 @@ async function getWithdrawInfo(req, res) {
         const withdrawRequirementMessage = userSecurity.isBanned
             ? `Tu cuenta se encuentra restringida temporalmente. No puedes solicitar retiros. Contacta con soporte.`
             : !hasActiveInvestment
-            ? `${withdrawDayPolicy.message} Debes invertir mínimo 5 USDT para habilitar los retiros.`
+            ? `Debes invertir mínimo 5 USDT para habilitar los retiros.`
             : withdrawDayPolicy.message;
 
         return res.json({
@@ -606,6 +592,17 @@ async function createWithdrawRequest(req, res) {
             return res.status(400).json({
                 message: withdrawDayPolicy.message,
                 withdrawalDayAllowed: false,
+                withdrawalDayPolicy: withdrawDayPolicy,
+            });
+        }
+
+        if (!isWithdrawWindowOpen()) {
+            await client.query("ROLLBACK");
+
+            return res.status(400).json({
+                message: `Los retiros están disponibles de ${WITHDRAW_ALLOWED_DAYS_LABEL}, únicamente en horario ${WITHDRAW_WINDOW_UTC.label}.`,
+                withdrawalWindowAllowed: false,
+                withdrawalDayAllowed: true,
                 withdrawalDayPolicy: withdrawDayPolicy,
             });
         }
