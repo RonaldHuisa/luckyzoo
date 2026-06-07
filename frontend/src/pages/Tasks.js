@@ -40,7 +40,7 @@ const TEST_BLOCK_TUESDAY = false;
 function getGardenClock(now) {
   const date = new Date(now);
   const utcDay = date.getUTCDay();
-  const isWeekend = utcDay === 0 || utcDay === 6;
+  const isWeekend = utcDay === 0;
   const isTestBlocked = TEST_BLOCK_TUESDAY && utcDay === 2;
   const blocked = isWeekend || isTestBlocked;
 
@@ -146,7 +146,7 @@ export default function Tasks() {
       setWaterPopup({
         type: "error",
         title: t("Planta en descanso"),
-        description: t("Las plantas de Nivel 1 o más se riegan de lunes a viernes. La Pasantía sí puede regarse fines de semana."),
+        description: t("Las plantas de Nivel 1 o más se riegan de lunes a sábado. La Pasantía sí puede regarse todos los días."),
       });
       return;
     }
@@ -251,7 +251,7 @@ export default function Tasks() {
         <div>
           <span>{t("Hora Jardín")}</span>
           <strong data-no-translate="true">{gardenClock.dayName} · {gardenClock.hour} UTC</strong>
-          {gardenClock.blocked && <small>{t("Pasantía disponible. Nivel 1 o más vuelve de lunes a viernes.")}</small>}
+          {gardenClock.blocked && <small>{t("Pasantía sí se puede regar. Nivel 1 o más de Lunes a Sábado.")}</small>}
         </div>
       </section>
 
@@ -295,7 +295,7 @@ export default function Tasks() {
                   <div className="tree-water-ordered-main">
                     {isPaidWeekendBlocked && isAvailable && (
                       <div className="tree-water-rest-note">
-                        {t("Nivel 1 o más: disponible de lunes a viernes. Pasantía disponible fines de semana.")}
+                        {t("Nivel 1 o más: disponible de lunes a sábado. Pasantía disponible todos los días.")}
                       </div>
                     )}
                     <div className="tree-water-ordered-head">
@@ -320,7 +320,7 @@ export default function Tasks() {
                       <button type="button" disabled={!canWater || claimingId === task.vipPurchaseId} onClick={() => handleWater(task)}>
                         {isAvailable ? <img className="water-ui-icon water-ui-icon-btn tree-water-btn-icon" src="/water-icon.png" alt="Agua" /> : <img className="water-ui-icon water-ui-icon-btn tree-water-btn-icon" src="/water-icon.png" alt="Agua" />}
                         {isPaidWeekendBlocked && isAvailable
-                          ? t("Disponible lunes a viernes")
+                          ? t("Disponible lunes a sábado")
                           : claimingId === task.vipPurchaseId
                             ? t("Regando...")
                             : isAvailable

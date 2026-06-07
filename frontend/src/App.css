@@ -30788,3 +30788,21 @@ body,
   line-height: 1.25;
   opacity: 0.82;
 }
+
+
+/* GREENVEST V65 - JARDÍN LUNES A SÁBADO + EMPTY STATE CLARO */
+.trees-task-page .mining-empty {
+  background: #f3fbf7 !important;
+  color: #527464 !important;
+  border: 1px solid #d4ebe0 !important;
+  border-radius: 18px !important;
+  padding: 18px 20px !important;
+  box-shadow: none !important;
+}
+
+.trees-task-page .garden-clock-card small {
+  color: #8a968f !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  opacity: 1 !important;
+}
