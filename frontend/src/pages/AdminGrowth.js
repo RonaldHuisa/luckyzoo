@@ -38,6 +38,12 @@ function number(value) {
   return Number(value || 0).toLocaleString("en-US");
 }
 
+function parseAdminAmount(value) {
+  const normalized = String(value ?? "").trim().replace(",", ".");
+  const amount = Number(normalized);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
 function LevelMetric({ title, count, invested, validCount, validTotal }) {
   return (
     <div className="admin-growth-level-box">
@@ -125,7 +131,7 @@ export default function AdminGrowth() {
 
   const handleManualInvestment = async () => {
     if (!selected?.user?.email) return showToast("Busca un usuario primero.");
-    const amount = Number(manualAmount || 0);
+    const amount = parseAdminAmount(manualAmount);
     if (!Number.isFinite(amount) || amount <= 0) return showToast("Ingresa un monto válido.");
 
     const ok = window.confirm(`¿Agregar ${amount} USDT de inversión a ${selected.user.email}?`);
@@ -151,7 +157,7 @@ export default function AdminGrowth() {
 
   const handleManualWithdrawable = async () => {
     if (!selected?.user?.email) return showToast("Busca un usuario primero.");
-    const amount = Number(manualWithdrawable || 0);
+    const amount = parseAdminAmount(manualWithdrawable);
     if (!Number.isFinite(amount) || amount <= 0) return showToast("Ingresa un monto retirable válido.");
 
     const ok = window.confirm(`¿Agregar ${amount} USDT al saldo retirable de ${selected.user.email}?`);
@@ -169,7 +175,12 @@ export default function AdminGrowth() {
       await searchUser(selected.user.email);
       await loadPromoters(search);
     } catch (error) {
-      showToast(error.message || "No se pudo agregar saldo retirable.");
+      const message = error.message || "";
+      showToast(
+        message.includes("Error en la petición")
+          ? "No se pudo agregar retirable. Verifica que el backend esté desplegado con la versión nueva."
+          : message || "No se pudo agregar saldo retirable."
+      );
     } finally {
       setProcessing("");
     }
@@ -177,7 +188,7 @@ export default function AdminGrowth() {
 
   const handleManualPower = async () => {
     if (!selected?.user?.email) return showToast("Busca un usuario primero.");
-    const value = Number(manualPower || 0);
+    const value = parseAdminAmount(manualPower);
     if (!Number.isFinite(value) || value <= 0) return showToast("Ingresa un porcentaje válido.");
 
     const ok = window.confirm(`¿Agregar +${value}% de potencia minera a ${selected.user.email}?`);
@@ -328,9 +339,8 @@ export default function AdminGrowth() {
                   <p>Suma al balance de inversión y recalcula el nivel GreenVest.</p>
                 </div>
                 <input
-                  type="number"
-                  min="0"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   value={manualAmount}
                   onChange={(event) => setManualAmount(event.target.value)}
                   placeholder="Monto USDT"
@@ -347,9 +357,8 @@ export default function AdminGrowth() {
                   <p>Suma USDT directo al saldo disponible para retiro.</p>
                 </div>
                 <input
-                  type="number"
-                  min="0"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   value={manualWithdrawable}
                   onChange={(event) => setManualWithdrawable(event.target.value)}
                   placeholder="Monto retirable"
@@ -366,9 +375,8 @@ export default function AdminGrowth() {
                   <p>Aumenta manualmente el bonus de minería del usuario.</p>
                 </div>
                 <input
-                  type="number"
-                  min="0"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   value={manualPower}
                   onChange={(event) => setManualPower(event.target.value)}
                   placeholder="Porcentaje extra"
