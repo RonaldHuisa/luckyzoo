@@ -5,6 +5,7 @@ const {
   getPromoters,
   getUserOverview,
   addManualInvestment,
+  addManualWithdrawable,
   addManualMiningPower,
 } = require("../controllers/adminGrowthController");
 
@@ -16,6 +17,7 @@ router.use(adminMiddleware);
 router.get("/growth/promoters", getPromoters);
 router.get("/growth/user", getUserOverview);
 router.post("/growth/manual-investment", addManualInvestment);
+router.post("/growth/manual-withdrawable", addManualWithdrawable);
 router.post("/growth/manual-mining-power", addManualMiningPower);
 
 module.exports = router;

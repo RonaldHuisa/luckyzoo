@@ -12,7 +12,10 @@ function normalizeEmail(value) {
 }
 
 function normalizeAmount(value) {
-  const amount = Number(value || 0);
+  const normalized = String(value ?? "")
+    .trim()
+    .replace(",", ".");
+  const amount = Number(normalized);
   if (!Number.isFinite(amount) || amount <= 0) return null;
   return amount;
 }
@@ -394,6 +397,85 @@ async function addManualInvestment(req, res) {
   }
 }
 
+
+async function addManualWithdrawable(req, res) {
+  const email = normalizeEmail(req.body?.email);
+  const amount = normalizeAmount(req.body?.amount);
+  const note = String(req.body?.note || "").trim();
+  const adminUserId = req.user?.id || req.user?.userId || null;
+
+  if (!email) return res.status(400).json({ message: "Ingresa el correo del usuario." });
+  if (!amount) return res.status(400).json({ message: "Ingresa un monto válido mayor a 0." });
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const userResult = await client.query(
+      `SELECT id, email, withdrawable_usdt FROM users WHERE LOWER(email) = $1 LIMIT 1 FOR UPDATE`,
+      [email]
+    );
+
+    if (userResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ message: "El usuario no existe." });
+    }
+
+    const user = userResult.rows[0];
+
+    const updatedResult = await client.query(
+      `
+      UPDATE users
+      SET
+        withdrawable_usdt = COALESCE(withdrawable_usdt, 0) + $1,
+        earnings_balance_usdt = COALESCE(earnings_balance_usdt, 0) + $1
+      WHERE id = $2
+      RETURNING id, email, withdrawable_usdt, earnings_balance_usdt
+      `,
+      [amount, user.id]
+    );
+
+    await client.query(
+      `
+      INSERT INTO account_ledger
+        (user_id, balance_type, direction, type, title, amount_usdt, description, reference_type, status, metadata, created_at)
+      VALUES
+        ($1, 'withdrawable', 'credit', 'admin_manual_reward', 'Bono retirable administrativo', $2, $3, 'admin_adjustment', 'completed', $4::jsonb, CURRENT_TIMESTAMP)
+      `,
+      [
+        user.id,
+        amount,
+        note || `Ajuste administrativo de +${amount} USDT retirable`,
+        JSON.stringify({
+          source: "admin_growth_panel",
+          adminUserId,
+          previousWithdrawableUsdt: user.withdrawable_usdt,
+          amount,
+          note,
+        }),
+      ]
+    );
+
+    await client.query("COMMIT");
+
+    return res.json({
+      message: "Saldo retirable agregado correctamente.",
+      user: {
+        id: updatedResult.rows[0].id,
+        email: updatedResult.rows[0].email,
+        withdrawable_usdt: updatedResult.rows[0].withdrawable_usdt,
+        earnings_balance_usdt: updatedResult.rows[0].earnings_balance_usdt,
+      },
+    });
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("ADD MANUAL WITHDRAWABLE ERROR:", error);
+    return res.status(500).json({ message: "Error al agregar saldo retirable.", detail: error.message });
+  } finally {
+    client.release();
+  }
+}
+
 async function addManualMiningPower(req, res) {
   const email = normalizeEmail(req.body?.email);
   const percent = normalizeAmount(req.body?.percent);
@@ -474,5 +556,6 @@ module.exports = {
   getPromoters,
   getUserOverview,
   addManualInvestment,
+  addManualWithdrawable,
   addManualMiningPower,
 };
