@@ -6,6 +6,7 @@ import {
   FiSearch,
   FiUsers,
   FiDollarSign,
+  FiCreditCard,
   FiZap,
   FiPlusCircle,
   FiTrendingUp,
@@ -13,6 +14,7 @@ import {
 } from "react-icons/fi";
 import {
   addAdminManualInvestment,
+  addAdminManualWithdrawable,
   addAdminManualMiningPower,
   getAdminGrowthPromoters,
   getAdminGrowthUser,
@@ -59,6 +61,7 @@ export default function AdminGrowth() {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [selected, setSelected] = useState(null);
   const [manualAmount, setManualAmount] = useState("");
+  const [manualWithdrawable, setManualWithdrawable] = useState("");
   const [manualPower, setManualPower] = useState("0.05");
   const [manualNote, setManualNote] = useState("");
   const [processing, setProcessing] = useState("");
@@ -141,6 +144,32 @@ export default function AdminGrowth() {
       await loadPromoters(search);
     } catch (error) {
       showToast(error.message || "No se pudo agregar inversión.");
+    } finally {
+      setProcessing("");
+    }
+  };
+
+  const handleManualWithdrawable = async () => {
+    if (!selected?.user?.email) return showToast("Busca un usuario primero.");
+    const amount = Number(manualWithdrawable || 0);
+    if (!Number.isFinite(amount) || amount <= 0) return showToast("Ingresa un monto retirable válido.");
+
+    const ok = window.confirm(`¿Agregar ${amount} USDT al saldo retirable de ${selected.user.email}?`);
+    if (!ok) return;
+
+    try {
+      setProcessing("withdrawable");
+      const data = await addAdminManualWithdrawable({
+        email: selected.user.email,
+        amount,
+        note: manualNote,
+      });
+      showToast(data.message || "Saldo retirable agregado correctamente.");
+      setManualWithdrawable("");
+      await searchUser(selected.user.email);
+      await loadPromoters(search);
+    } catch (error) {
+      showToast(error.message || "No se pudo agregar saldo retirable.");
     } finally {
       setProcessing("");
     }
@@ -230,8 +259,8 @@ export default function AdminGrowth() {
         <div className="admin-growth-section-title">
           <FiSearch />
           <div>
-            <h3>Buscar usuario y ajustar inversión</h3>
-            <p>Consulta por correo, revisa su minería, balances, retiros e invitados. Luego puedes agregar inversión o potencia minera manual.</p>
+            <h3>Buscar usuario y ajustar saldos</h3>
+            <p>Consulta por correo, revisa balances, retiros e invitados. Luego puedes agregar inversión, saldo retirable o potencia manual.</p>
           </div>
         </div>
 
@@ -251,7 +280,7 @@ export default function AdminGrowth() {
         </div>
 
         {user && (
-          <div className="admin-growth-user-card">
+          <div className="admin-growth-user-card admin-growth-user-card-clean">
             <div className="admin-growth-user-top">
               <div>
                 <h3>{user.email}</h3>
@@ -279,11 +308,24 @@ export default function AdminGrowth() {
               </div>
             )}
 
-            <div className="admin-growth-actions-panel">
+            <div className="admin-growth-manual-title">
+              <h4>Ajustes manuales del usuario</h4>
+              <p>Usa estos campos solo para correcciones administrativas o bonos aprobados.</p>
+            </div>
+
+            <textarea
+              className="admin-growth-note admin-growth-note-clean"
+              value={manualNote}
+              onChange={(event) => setManualNote(event.target.value)}
+              placeholder="Nota administrativa opcional"
+              rows={2}
+            />
+
+            <div className="admin-growth-actions-panel admin-growth-actions-panel-clean">
               <div className="admin-growth-action-box">
                 <div>
-                  <h4><FiDollarSign /> Agregar inversión</h4>
-                  <p>Se suma al balance de inversión y recalcula automáticamente el nivel GreenVest.</p>
+                  <h4><FiDollarSign /> Inversión</h4>
+                  <p>Suma al balance de inversión y recalcula el nivel GreenVest.</p>
                 </div>
                 <input
                   type="number"
@@ -295,14 +337,33 @@ export default function AdminGrowth() {
                 />
                 <button type="button" onClick={handleManualInvestment} disabled={processing === "investment"}>
                   <FiPlusCircle />
-                  {processing === "investment" ? "Agregando..." : "Añadir balance"}
+                  {processing === "investment" ? "Agregando..." : "Añadir inversión"}
+                </button>
+              </div>
+
+              <div className="admin-growth-action-box admin-growth-action-box-withdrawable">
+                <div>
+                  <h4><FiCreditCard /> Retirable</h4>
+                  <p>Suma USDT directo al saldo disponible para retiro.</p>
+                </div>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={manualWithdrawable}
+                  onChange={(event) => setManualWithdrawable(event.target.value)}
+                  placeholder="Monto retirable"
+                />
+                <button type="button" onClick={handleManualWithdrawable} disabled={processing === "withdrawable"}>
+                  <FiPlusCircle />
+                  {processing === "withdrawable" ? "Agregando..." : "Añadir retirable"}
                 </button>
               </div>
 
               <div className="admin-growth-action-box">
                 <div>
-                  <h4><FiZap /> Agregar potencia minera</h4>
-                  <p>Aumenta manualmente el bonus de minería. Se recalcula la ganancia diaria.</p>
+                  <h4><FiZap /> Potencia</h4>
+                  <p>Aumenta manualmente el bonus de minería del usuario.</p>
                 </div>
                 <input
                   type="number"
@@ -318,14 +379,6 @@ export default function AdminGrowth() {
                 </button>
               </div>
             </div>
-
-            <textarea
-              className="admin-growth-note"
-              value={manualNote}
-              onChange={(event) => setManualNote(event.target.value)}
-              placeholder="Nota administrativa opcional"
-              rows={3}
-            />
           </div>
         )}
       </section>

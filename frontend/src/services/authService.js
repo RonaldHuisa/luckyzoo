@@ -574,6 +574,13 @@ export function addAdminManualInvestment(payload) {
   });
 }
 
+export function addAdminManualWithdrawable(payload) {
+  return request("/admin/growth/manual-withdrawable", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function addAdminManualMiningPower(payload) {
   return request("/admin/growth/manual-mining-power", {
     method: "POST",
