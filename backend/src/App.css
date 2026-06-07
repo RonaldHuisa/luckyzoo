@@ -10557,3 +10557,161 @@ body {
   line-height: 1.25;
   opacity: 0.82;
 }
+
+
+/* GREENVEST V65 - JARDÍN LUNES A SÁBADO + EMPTY STATE CLARO */
+.trees-task-page .mining-empty {
+  background: #f3fbf7 !important;
+  color: #527464 !important;
+  border: 1px solid #d4ebe0 !important;
+  border-radius: 18px !important;
+  padding: 18px 20px !important;
+  box-shadow: none !important;
+}
+
+.trees-task-page .garden-clock-card small {
+  color: #8a968f !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  opacity: 1 !important;
+}
+
+
+/* GREENVEST V66 - ADMIN PROMOTORES ORDENADO + SALDO RETIRABLE */
+.admin-growth-user-card-clean {
+  padding: 16px !important;
+  border-radius: 24px !important;
+}
+
+.admin-growth-user-card-clean .admin-growth-user-top {
+  gap: 10px !important;
+  align-items: flex-start !important;
+}
+
+.admin-growth-user-card-clean .admin-growth-user-top h3 {
+  font-size: 17px !important;
+  line-height: 1.15 !important;
+  margin-bottom: 4px !important;
+  word-break: break-word !important;
+}
+
+.admin-growth-user-card-clean .admin-growth-user-top p {
+  font-size: 12px !important;
+  line-height: 1.25 !important;
+}
+
+.admin-growth-user-card-clean .admin-deposit-status {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+  font-size: 11px !important;
+  padding: 8px 10px !important;
+}
+
+.admin-growth-user-card-clean .admin-growth-user-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 9px !important;
+  margin: 14px 0 !important;
+}
+
+.admin-growth-user-card-clean .admin-growth-user-grid div {
+  padding: 11px !important;
+  min-height: 64px !important;
+}
+
+.admin-growth-user-card-clean .admin-growth-user-grid span {
+  font-size: 10.5px !important;
+  margin-bottom: 6px !important;
+}
+
+.admin-growth-user-card-clean .admin-growth-user-grid strong {
+  font-size: 14px !important;
+}
+
+.admin-growth-manual-title {
+  margin-top: 14px !important;
+  padding: 13px 14px !important;
+  border-radius: 18px !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.admin-growth-manual-title h4 {
+  margin: 0 !important;
+  color: #f4efe4 !important;
+  font-size: 15px !important;
+  font-weight: 900 !important;
+}
+
+.admin-growth-manual-title p {
+  margin: 4px 0 0 !important;
+  color: #bfc7d8 !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+}
+
+.admin-growth-note-clean {
+  margin-top: 10px !important;
+  min-height: 74px !important;
+  resize: vertical !important;
+}
+
+.admin-growth-actions-panel-clean {
+  grid-template-columns: 1fr !important;
+  gap: 12px !important;
+  margin-top: 12px !important;
+}
+
+.admin-growth-actions-panel-clean .admin-growth-action-box {
+  padding: 14px !important;
+  border-radius: 18px !important;
+}
+
+.admin-growth-actions-panel-clean .admin-growth-action-box h4 {
+  font-size: 14px !important;
+}
+
+.admin-growth-actions-panel-clean .admin-growth-action-box p {
+  min-height: auto !important;
+  font-size: 11.5px !important;
+}
+
+.admin-growth-actions-panel-clean .admin-growth-action-box input {
+  min-height: 44px !important;
+}
+
+.admin-growth-actions-panel-clean .admin-growth-action-box button {
+  width: 100% !important;
+  min-height: 44px !important;
+}
+
+.admin-growth-action-box-withdrawable {
+  border-color: rgba(67, 216, 153, 0.28) !important;
+  background: linear-gradient(180deg, rgba(31, 79, 65, 0.68) 0%, rgba(24, 42, 39, 0.94) 100%) !important;
+}
+
+.admin-growth-action-box-withdrawable h4 svg {
+  color: #56e6ad !important;
+}
+
+.admin-growth-action-box-withdrawable button {
+  background: linear-gradient(135deg, #8ff3c4 0%, #39d48f 48%, #0fbf75 100%) !important;
+  color: #06251a !important;
+}
+
+@media (max-width: 390px) {
+  .admin-growth-user-card-clean {
+    padding: 13px !important;
+  }
+
+  .admin-growth-user-card-clean .admin-growth-user-grid {
+    gap: 8px !important;
+  }
+
+  .admin-growth-user-card-clean .admin-growth-user-grid div {
+    padding: 10px !important;
+  }
+
+  .admin-growth-user-card-clean .admin-growth-user-grid strong {
+    font-size: 13px !important;
+  }
+}
