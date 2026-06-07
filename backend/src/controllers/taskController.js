@@ -5,6 +5,18 @@ function getAuthUserId(req) {
   return req.user.userId || req.user.id;
 }
 
+// GreenVest PRD: las plantas de Nivel 1 o más solo se riegan de lunes a sábado.
+// La Pasantía/Nivel 0 sí puede regarse fines de semana con normalidad.
+const PAID_TREE_ALLOWED_DAYS_UTC = [1, 2, 3, 4, 5, 6];
+
+function isPaidTreeWaterBlocked(date = new Date(), level = 0) {
+  const treeLevel = Number(level || 0);
+  if (treeLevel <= 0) return false;
+
+  const utcDay = date.getUTCDay();
+  return !PAID_TREE_ALLOWED_DAYS_UTC.includes(utcDay);
+}
+
 function buildCooldownLabel(minutes) {
   const value = Number(minutes || 0);
   if (value <= 0) return "Disponible";
@@ -22,6 +34,8 @@ function normalizeTreeTask(row) {
   const serverNow = row.server_now || null;
   const status = row.task_status;
   const level = Number(row.vip_level);
+  const paidTreeWeekendBlocked = isPaidTreeWaterBlocked(serverNow ? new Date(serverNow) : new Date(), level);
+  const wateringAllowedToday = !paidTreeWeekendBlocked;
 
   return {
     id: row.vip_purchase_id,
@@ -45,6 +59,8 @@ function normalizeTreeTask(row) {
     serverNow,
     status,
     isAvailable: status === "available",
+    wateringAllowedToday,
+    isWeekendBlocked: paidTreeWeekendBlocked,
     isExpired: status === "expired",
     isFree: level === 0,
   };
@@ -134,8 +150,8 @@ async function getTasksDashboard(req, res) {
 
     const tasks = tasksResult.rows.map(normalizeTreeTask);
     const activeTasks = tasks.filter((task) => !task.isExpired);
-    const availableTasks = activeTasks.filter((task) => task.status === "available").length;
-    const cooldownTasks = activeTasks.filter((task) => task.status === "cooldown").length;
+    const availableTasks = activeTasks.filter((task) => task.status === "available" && task.wateringAllowedToday).length;
+    const cooldownTasks = activeTasks.filter((task) => task.status === "cooldown" || (task.status === "available" && !task.wateringAllowedToday)).length;
 
     const nearestNextAvailableAt = activeTasks
       .filter((task) => task.status === "cooldown" && task.nextAvailableAt)
@@ -231,6 +247,13 @@ async function completeVipTask(req, res) {
         message: tree.level === 0
           ? "Tu Pasantía ha finalizado. Planta un árbol superior para seguir generando recompensas."
           : "Este árbol GreenVest ya no está activo.",
+      });
+    }
+
+    if (isPaidTreeWaterBlocked(new Date(), tree.level)) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({
+        message: "Las plantas de Nivel 1 o más solo pueden regarse de lunes a sábado. La Pasantía sí puede regarse todos los días.",
       });
     }
 
