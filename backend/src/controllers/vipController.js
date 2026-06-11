@@ -1,6 +1,7 @@
 const pool = require("../config/db");
 const { createReferralCommissions } = require("../services/referralCommissionService");
 const { ensureGreenVestTreeSchema } = require("../services/greenVestTreeService");
+const { createFreePlantPurchasePoints } = require("../services/freePlantPointsService");
 
 function getAuthUserId(req) {
   return req.user.userId || req.user.id;
@@ -318,6 +319,8 @@ async function buyVipPackage(req, res) {
       purchasedLevel: Number(treePackage.level),
       purchasedPackageId: Number(treePackage.id),
     });
+
+    await createFreePlantPurchasePoints(client, userId, purchase.id, Number(treePackage.level));
 
     await client.query("COMMIT");
 

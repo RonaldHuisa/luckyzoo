@@ -364,6 +364,33 @@ export default function Home() {
 
   return (
     <div className="page runpod-home-page">
+      {showFreePlantPopup && (
+        <div className="home-free-plant-popup-overlay" onClick={() => setShowFreePlantPopup(false)}>
+          <div className="home-free-plant-popup" onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              className="home-free-plant-popup-close"
+              onClick={() => setShowFreePlantPopup(false)}
+              aria-label={t("Cerrar")}
+            >
+              ×
+            </button>
+
+            <button
+              type="button"
+              className="home-free-plant-popup-image"
+              onClick={() => {
+                setShowFreePlantPopup(false);
+                navigate("/points");
+              }}
+              aria-label={t("Gánate una planta gratis")}
+            >
+              <img src="/greenvest_banner_planta_gratis.png" alt="Gánate una planta gratis - Evento permanente GreenVest" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {installToast && (
         <div className="home-install-toast">
           <span>{installToast}</span>
