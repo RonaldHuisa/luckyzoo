@@ -10715,3 +10715,1297 @@ body {
     font-size: 13px !important;
   }
 }
+
+
+/* GREENVEST V68 - EVENTO PERMANENTE PUNTOS */
+.home-free-plant-event-banner {
+  display: grid !important;
+  grid-template-columns: 1fr 86px !important;
+  gap: 12px !important;
+  align-items: center !important;
+  margin: 12px 0 14px !important;
+  padding: 16px !important;
+  border-radius: 22px !important;
+  background:
+    radial-gradient(circle at 84% 18%, rgba(151, 255, 191, .58), transparent 34%),
+    linear-gradient(135deg, #eafff4 0%, #b7f6d1 43%, #16bd74 100%) !important;
+  border: 1px solid rgba(2, 119, 70, .18) !important;
+  box-shadow: 0 18px 34px rgba(0, 129, 75, .22) !important;
+  overflow: hidden !important;
+  cursor: pointer !important;
+  color: #064b32 !important;
+}
+
+.home-free-plant-event-banner span {
+  display: inline-flex !important;
+  width: max-content !important;
+  padding: 5px 9px !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,.72) !important;
+  color: #0b7b4b !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .06em !important;
+}
+
+.home-free-plant-event-banner strong {
+  display: block !important;
+  margin-top: 8px !important;
+  color: #053b28 !important;
+  font-size: 20px !important;
+  line-height: 1.05 !important;
+  font-weight: 950 !important;
+  letter-spacing: -.04em !important;
+}
+
+.home-free-plant-event-banner p {
+  margin: 7px 0 12px !important;
+  color: #136447 !important;
+  font-size: 12px !important;
+  line-height: 1.28 !important;
+  font-weight: 750 !important;
+}
+
+.home-free-plant-event-banner button {
+  border: none !important;
+  border-radius: 14px !important;
+  padding: 9px 13px !important;
+  background: linear-gradient(135deg, #0c8a55, #08c778) !important;
+  color: white !important;
+  font-weight: 900 !important;
+}
+
+.home-free-plant-event-banner img {
+  width: 86px !important;
+  height: 86px !important;
+  object-fit: contain !important;
+  filter: drop-shadow(0 14px 18px rgba(0,0,0,.18)) !important;
+}
+
+.home-lower-banner.points {
+  background: linear-gradient(135deg, #eafff4, #bcf8d5) !important;
+  border: 1px solid rgba(0, 164, 91, .18) !important;
+}
+
+.points-page,
+.admin-free-plants-page {
+  color: #083927 !important;
+}
+
+.points-header {
+  display: grid !important;
+  grid-template-columns: 44px 1fr 44px !important;
+  gap: 10px !important;
+  align-items: center !important;
+  margin-bottom: 12px !important;
+}
+
+.points-header > div {
+  text-align: center !important;
+}
+
+.points-header span {
+  display: block !important;
+  color: #c6ffe0 !important;
+  font-size: 10px !important;
+  text-transform: uppercase !important;
+  letter-spacing: .12em !important;
+  font-weight: 900 !important;
+}
+
+.points-header h2 {
+  margin: 2px 0 0 !important;
+  color: #ffffff !important;
+  font-size: 21px !important;
+  font-weight: 950 !important;
+}
+
+.points-hero-card {
+  border-radius: 24px !important;
+  padding: 18px !important;
+  background:
+    radial-gradient(circle at 85% 20%, rgba(255,255,255,.7), transparent 34%),
+    linear-gradient(135deg, #e9fff3 0%, #a4f5c7 45%, #0bbf72 100%) !important;
+  box-shadow: 0 18px 36px rgba(0, 114, 66, .2) !important;
+  border: 1px solid rgba(255,255,255,.45) !important;
+  margin-bottom: 12px !important;
+}
+
+.points-hero-card span {
+  width: 44px !important;
+  height: 44px !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 16px !important;
+  color: #fff !important;
+  background: linear-gradient(135deg, #0aa766, #06cf7d) !important;
+  font-size: 22px !important;
+}
+
+.points-hero-card p {
+  margin: 12px 0 2px !important;
+  color: #0a6c45 !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+}
+
+.points-hero-card strong {
+  display: block !important;
+  color: #063826 !important;
+  font-size: 42px !important;
+  line-height: 1 !important;
+  font-weight: 950 !important;
+}
+
+.points-hero-card small {
+  display: block !important;
+  margin-top: 8px !important;
+  color: #1d6d50 !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+  font-weight: 750 !important;
+}
+
+.points-stats-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 9px !important;
+  margin-bottom: 12px !important;
+}
+
+.points-stats-grid div {
+  background: #ecfff5 !important;
+  border: 1px solid #c9eadb !important;
+  border-radius: 18px !important;
+  padding: 12px !important;
+}
+
+.points-stats-grid svg {
+  color: #0aa766 !important;
+  font-size: 19px !important;
+}
+
+.points-stats-grid span {
+  display: block !important;
+  margin-top: 8px !important;
+  color: #56806d !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+}
+
+.points-stats-grid strong {
+  display: block !important;
+  margin-top: 4px !important;
+  color: #073b29 !important;
+  font-size: 20px !important;
+  font-weight: 950 !important;
+}
+
+.points-rules-card,
+.points-plants-section,
+.points-final-rules,
+.admin-free-plants-card {
+  background: #f1fff7 !important;
+  border: 1px solid #cceede !important;
+  border-radius: 22px !important;
+  padding: 15px !important;
+  margin-bottom: 12px !important;
+  color: #073b29 !important;
+}
+
+.points-rules-card h3,
+.points-plants-section h3,
+.points-final-rules h3 {
+  margin: 0 0 10px !important;
+  color: #073b29 !important;
+  font-size: 18px !important;
+  font-weight: 950 !important;
+}
+
+.points-rules-list p,
+.points-final-rules p {
+  margin: 8px 0 !important;
+  color: #2b674d !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+  font-weight: 750 !important;
+}
+
+.points-rules-list b {
+  color: #009a5d !important;
+}
+
+.points-plants-list,
+.admin-free-request-list {
+  display: grid !important;
+  gap: 11px !important;
+}
+
+.points-plant-card {
+  display: grid !important;
+  grid-template-columns: 72px 1fr !important;
+  gap: 11px !important;
+  background: #ffffff !important;
+  border: 1px solid #d7eee2 !important;
+  border-radius: 20px !important;
+  padding: 12px !important;
+  box-shadow: 0 10px 20px rgba(0, 96, 56, .08) !important;
+}
+
+.points-plant-card.requested {
+  opacity: .92 !important;
+}
+
+.points-plant-image {
+  width: 72px !important;
+  height: 72px !important;
+  border-radius: 18px !important;
+  background: linear-gradient(180deg, #e9fff4, #cff9df) !important;
+  display: grid !important;
+  place-items: center !important;
+}
+
+.points-plant-image img {
+  width: 60px !important;
+  height: 60px !important;
+  object-fit: contain !important;
+}
+
+.points-plant-body small,
+.points-plant-body span,
+.points-plant-body em {
+  display: block !important;
+}
+
+.points-plant-body small {
+  color: #0ca869 !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+}
+
+.points-plant-body strong {
+  display: block !important;
+  margin-top: 2px !important;
+  color: #073b29 !important;
+  font-size: 15px !important;
+  font-weight: 950 !important;
+}
+
+.points-plant-body span {
+  margin-top: 5px !important;
+  color: #0b6d48 !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+}
+
+.points-plant-body em {
+  margin-top: 3px !important;
+  color: #6b8879 !important;
+  font-size: 11px !important;
+  font-style: normal !important;
+}
+
+.points-plant-card button {
+  grid-column: 1 / -1 !important;
+  border: none !important;
+  border-radius: 15px !important;
+  padding: 11px !important;
+  background: linear-gradient(135deg, #0ebc72, #00d783) !important;
+  color: #fff !important;
+  font-weight: 950 !important;
+}
+
+.points-plant-card button:disabled {
+  background: #d8e7df !important;
+  color: #72877c !important;
+}
+
+.points-request-status {
+  width: max-content !important;
+  margin: 7px 0 0 !important;
+  padding: 4px 8px !important;
+  border-radius: 999px !important;
+  background: #fff5d9 !important;
+  color: #92630e !important;
+  font-size: 10.5px !important;
+  font-weight: 900 !important;
+}
+
+.points-request-status.approved {
+  background: #dcffe9 !important;
+  color: #087846 !important;
+}
+
+.admin-free-tabs {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 7px !important;
+  margin-top: 12px !important;
+}
+
+.admin-free-tabs button {
+  border: 1px solid #cceede !important;
+  border-radius: 13px !important;
+  padding: 9px 6px !important;
+  background: #fff !important;
+  color: #507965 !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+}
+
+.admin-free-tabs button.active {
+  background: linear-gradient(135deg, #0dbb72, #05d481) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+}
+
+.admin-free-request-card {
+  background: #f2fff8 !important;
+  border: 1px solid #cceede !important;
+  border-radius: 22px !important;
+  padding: 14px !important;
+  color: #073b29 !important;
+}
+
+.admin-free-request-top {
+  display: flex !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+}
+
+.admin-free-request-top h3 {
+  margin: 0 !important;
+  font-size: 14px !important;
+  color: #073b29 !important;
+  word-break: break-word !important;
+}
+
+.admin-free-request-top p {
+  margin: 4px 0 0 !important;
+  font-size: 11px !important;
+  color: #648271 !important;
+}
+
+.admin-free-request-top span {
+  flex: 0 0 auto !important;
+  height: max-content !important;
+  padding: 6px 9px !important;
+  border-radius: 999px !important;
+  background: #fff3d0 !important;
+  color: #966407 !important;
+  font-size: 10px !important;
+  font-weight: 950 !important;
+}
+
+.admin-free-request-card.approved .admin-free-request-top span {
+  background: #dfffe9 !important;
+  color: #087a47 !important;
+}
+
+.admin-free-request-card.rejected .admin-free-request-top span {
+  background: #ffe4e4 !important;
+  color: #ac2f2f !important;
+}
+
+.admin-free-request-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  margin-top: 12px !important;
+}
+
+.admin-free-request-grid div {
+  background: #ffffff !important;
+  border: 1px solid #d7eee2 !important;
+  border-radius: 15px !important;
+  padding: 10px !important;
+}
+
+.admin-free-request-grid small {
+  display: block !important;
+  color: #6f8f7c !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+}
+
+.admin-free-request-grid strong {
+  display: block !important;
+  color: #083927 !important;
+  font-size: 12px !important;
+  margin-top: 4px !important;
+  font-weight: 950 !important;
+}
+
+.admin-free-note {
+  margin: 10px 0 0 !important;
+  padding: 10px !important;
+  border-radius: 14px !important;
+  background: rgba(255, 255, 255, .72) !important;
+  color: #547666 !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+}
+
+.admin-free-actions {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 9px !important;
+  margin-top: 12px !important;
+}
+
+.admin-free-actions button {
+  border: none !important;
+  border-radius: 14px !important;
+  padding: 11px !important;
+  display: inline-flex !important;
+  gap: 6px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: 950 !important;
+}
+
+.admin-free-actions .approve {
+  background: linear-gradient(135deg, #10bb73, #06d080) !important;
+  color: #fff !important;
+}
+
+.admin-free-actions .reject {
+  background: #ffe3e3 !important;
+  color: #ac3434 !important;
+}
+
+
+/* GREENVEST V69 - PUNTOS PREMIUM COMPACTO */
+.points-page .points-rules-card,
+.points-page .points-plants-section,
+.points-page .points-final-rules {
+  border-radius: 24px !important;
+  padding: 16px !important;
+  background: linear-gradient(180deg, #f3fff8 0%, #eafff3 100%) !important;
+  border: 1px solid rgba(13, 177, 107, .16) !important;
+  box-shadow: 0 14px 28px rgba(0, 116, 67, .10) !important;
+}
+
+.points-page .points-rules-card h3,
+.points-page .points-plants-section h3,
+.points-page .points-final-rules h3 {
+  font-size: 18px !important;
+  letter-spacing: -0.04em !important;
+  margin-bottom: 12px !important;
+}
+
+.points-rules-simple {
+  display: grid !important;
+  gap: 8px !important;
+}
+
+.points-rules-simple div {
+  display: grid !important;
+  grid-template-columns: 58px 1fr !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 10px 11px !important;
+  border-radius: 16px !important;
+  background: rgba(255,255,255,.78) !important;
+  border: 1px solid rgba(0, 161, 95, .12) !important;
+}
+
+.points-rules-simple strong {
+  display: grid !important;
+  place-items: center !important;
+  min-height: 34px !important;
+  border-radius: 12px !important;
+  background: linear-gradient(135deg, #0fbd74, #05d481) !important;
+  color: #ffffff !important;
+  font-size: 15px !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+}
+
+.points-rules-simple span {
+  color: #174d39 !important;
+  font-size: 12px !important;
+  line-height: 1.28 !important;
+  font-weight: 800 !important;
+}
+
+.points-plants-list {
+  gap: 10px !important;
+}
+
+.points-plant-card-premium {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 10px !important;
+  padding: 12px !important;
+  border-radius: 20px !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fffb 100%) !important;
+  border: 1px solid rgba(1, 145, 86, .14) !important;
+  box-shadow: 0 12px 24px rgba(0, 102, 59, .08) !important;
+}
+
+.points-plant-main {
+  display: grid !important;
+  grid-template-columns: 68px 1fr !important;
+  gap: 12px !important;
+  align-items: center !important;
+}
+
+.points-plant-card-premium .points-plant-image {
+  width: 68px !important;
+  height: 68px !important;
+  border-radius: 18px !important;
+  background:
+    radial-gradient(circle at 70% 20%, rgba(255,255,255,.85), transparent 35%),
+    linear-gradient(135deg, #e8fff3, #c7f7dc) !important;
+}
+
+.points-plant-card-premium .points-plant-image img {
+  width: 58px !important;
+  height: 58px !important;
+}
+
+.points-plant-card-premium .points-plant-body small {
+  color: #0bb06b !important;
+  font-size: 10.5px !important;
+  font-weight: 950 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .02em !important;
+}
+
+.points-plant-card-premium .points-plant-body strong {
+  font-size: 16px !important;
+  line-height: 1.12 !important;
+  margin-top: 2px !important;
+  letter-spacing: -0.04em !important;
+}
+
+.points-plant-card-premium .points-plant-body span {
+  display: inline-flex !important;
+  width: max-content !important;
+  margin-top: 7px !important;
+  padding: 4px 8px !important;
+  border-radius: 999px !important;
+  background: #e7fff1 !important;
+  color: #087448 !important;
+  font-size: 11px !important;
+  font-weight: 950 !important;
+}
+
+.points-plant-card-premium .points-plant-body em {
+  margin-top: 5px !important;
+  color: #729084 !important;
+  font-size: 10.5px !important;
+}
+
+.points-plant-card-premium button {
+  min-height: 40px !important;
+  border-radius: 15px !important;
+  font-size: 13px !important;
+  box-shadow: none !important;
+}
+
+.points-final-rules {
+  margin-bottom: 96px !important;
+}
+
+.points-final-rules p {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 7px !important;
+  margin: 9px 0 !important;
+  color: #215944 !important;
+  font-size: 12px !important;
+  line-height: 1.32 !important;
+  font-weight: 800 !important;
+}
+
+.points-final-rules p::first-letter {
+  font-size: 13px !important;
+}
+
+@media (max-width: 390px) {
+  .points-rules-simple div {
+    grid-template-columns: 52px 1fr !important;
+    padding: 9px !important;
+  }
+
+  .points-rules-simple strong {
+    font-size: 13px !important;
+  }
+
+  .points-plant-main {
+    grid-template-columns: 62px 1fr !important;
+    gap: 10px !important;
+  }
+
+  .points-plant-card-premium .points-plant-image {
+    width: 62px !important;
+    height: 62px !important;
+  }
+
+  .points-plant-card-premium .points-plant-image img {
+    width: 52px !important;
+    height: 52px !important;
+  }
+}
+
+
+/* GREENVEST V70 - PUNTOS GREENVEST PROFESIONAL */
+.points-page-pro {
+  padding-left: 24px !important;
+  padding-right: 24px !important;
+  padding-bottom: 108px !important;
+  color: #082f23 !important;
+}
+
+.points-page-pro * {
+  box-sizing: border-box !important;
+}
+
+.points-pro-header {
+  display: grid !important;
+  grid-template-columns: 44px 1fr 44px !important;
+  gap: 10px !important;
+  align-items: center !important;
+  margin: 2px 0 14px !important;
+}
+
+.points-pro-header > div {
+  text-align: center !important;
+}
+
+.points-pro-header span {
+  display: block !important;
+  color: rgba(255, 255, 255, .86) !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .13em !important;
+  font-weight: 850 !important;
+}
+
+.points-pro-header h2 {
+  margin: 5px 0 0 !important;
+  color: #ffffff !important;
+  font-size: 20px !important;
+  line-height: 1.05 !important;
+  font-weight: 900 !important;
+  letter-spacing: -.04em !important;
+}
+
+.points-pro-summary {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 12px !important;
+  padding: 18px !important;
+  margin-bottom: 12px !important;
+  border-radius: 24px !important;
+  background: #f4fff9 !important;
+  border: 1px solid rgba(255, 255, 255, .88) !important;
+  box-shadow: 0 16px 34px rgba(2, 93, 57, .14) !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.points-pro-summary::after {
+  content: "" !important;
+  position: absolute !important;
+  width: 104px !important;
+  height: 104px !important;
+  right: -34px !important;
+  top: -36px !important;
+  border-radius: 50% !important;
+  background: rgba(16, 185, 129, .13) !important;
+}
+
+.points-pro-badge {
+  width: max-content !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  padding: 7px 10px !important;
+  border-radius: 999px !important;
+  background: #e4fff1 !important;
+  color: #058655 !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+}
+
+.points-pro-badge svg {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+.points-pro-summary h1 {
+  margin: 14px 0 0 !important;
+  color: #052d21 !important;
+  font-size: 46px !important;
+  line-height: .9 !important;
+  font-weight: 950 !important;
+  letter-spacing: -.07em !important;
+}
+
+.points-pro-summary p {
+  margin: 8px 0 0 !important;
+  color: #0d7c52 !important;
+  font-size: 14px !important;
+  font-weight: 900 !important;
+}
+
+.points-pro-summary small {
+  display: block !important;
+  color: #59786a !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+  font-weight: 650 !important;
+}
+
+.points-pro-metrics {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  margin-bottom: 12px !important;
+}
+
+.points-pro-metrics div {
+  min-width: 0 !important;
+  padding: 10px 7px !important;
+  border-radius: 18px !important;
+  background: #f2fff8 !important;
+  border: 1px solid rgba(218, 242, 230, .94) !important;
+  box-shadow: 0 10px 20px rgba(2, 93, 57, .08) !important;
+  text-align: center !important;
+}
+
+.points-pro-metrics svg {
+  display: block !important;
+  width: 17px !important;
+  height: 17px !important;
+  margin: 0 auto 6px !important;
+  color: #08a766 !important;
+}
+
+.points-pro-metrics span {
+  display: block !important;
+  min-height: 24px !important;
+  color: #6a8277 !important;
+  font-size: 9.5px !important;
+  line-height: 1.15 !important;
+  font-weight: 850 !important;
+}
+
+.points-pro-metrics strong {
+  display: block !important;
+  margin-top: 4px !important;
+  color: #062f22 !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+  font-weight: 950 !important;
+}
+
+.points-pro-card {
+  margin-bottom: 12px !important;
+  padding: 15px !important;
+  border-radius: 24px !important;
+  background: #f5fff9 !important;
+  border: 1px solid rgba(216, 241, 230, .98) !important;
+  box-shadow: 0 14px 28px rgba(2, 93, 57, .10) !important;
+}
+
+.points-pro-section-title {
+  margin-bottom: 12px !important;
+}
+
+.points-pro-section-title h3 {
+  margin: 0 !important;
+  color: #062f22 !important;
+  font-size: 18px !important;
+  line-height: 1.05 !important;
+  font-weight: 950 !important;
+  letter-spacing: -.055em !important;
+}
+
+.points-pro-section-title p {
+  margin: 5px 0 0 !important;
+  color: #668578 !important;
+  font-size: 11.5px !important;
+  line-height: 1.25 !important;
+  font-weight: 650 !important;
+}
+
+.points-pro-steps {
+  display: grid !important;
+  gap: 8px !important;
+}
+
+.points-pro-steps div {
+  display: grid !important;
+  grid-template-columns: 42px 1fr !important;
+  gap: 10px !important;
+  align-items: center !important;
+  padding: 10px !important;
+  border-radius: 17px !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(220, 239, 230, .95) !important;
+}
+
+.points-pro-steps strong {
+  display: grid !important;
+  place-items: center !important;
+  width: 42px !important;
+  height: 34px !important;
+  border-radius: 13px !important;
+  background: #0fc77a !important;
+  color: #ffffff !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  font-weight: 950 !important;
+}
+
+.points-pro-steps span {
+  color: #254f40 !important;
+  font-size: 12px !important;
+  line-height: 1.28 !important;
+  font-weight: 760 !important;
+}
+
+.points-pro-plant-list {
+  display: grid !important;
+  gap: 9px !important;
+}
+
+.points-pro-plant {
+  display: grid !important;
+  grid-template-columns: 56px 1fr 78px !important;
+  gap: 10px !important;
+  align-items: center !important;
+  padding: 10px !important;
+  min-height: 82px !important;
+  border-radius: 19px !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(219, 238, 229, .95) !important;
+  box-shadow: 0 8px 16px rgba(4, 79, 48, .06) !important;
+}
+
+.points-pro-plant-img {
+  width: 56px !important;
+  height: 56px !important;
+  border-radius: 17px !important;
+  display: grid !important;
+  place-items: center !important;
+  background: #eafff3 !important;
+  border: 1px solid rgba(203, 240, 222, .9) !important;
+}
+
+.points-pro-plant-img img {
+  width: 48px !important;
+  height: 48px !important;
+  object-fit: contain !important;
+}
+
+.points-pro-plant-info {
+  min-width: 0 !important;
+}
+
+.points-pro-plant-info span {
+  display: block !important;
+  color: #08a766 !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+  font-weight: 950 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .02em !important;
+}
+
+.points-pro-plant-info strong {
+  display: block !important;
+  margin-top: 4px !important;
+  color: #082f23 !important;
+  font-size: 14px !important;
+  line-height: 1.08 !important;
+  font-weight: 950 !important;
+  letter-spacing: -.04em !important;
+  overflow-wrap: anywhere !important;
+}
+
+.points-pro-plant-info small {
+  display: block !important;
+  margin-top: 5px !important;
+  color: #789184 !important;
+  font-size: 10.2px !important;
+  line-height: 1.15 !important;
+  font-weight: 650 !important;
+}
+
+.points-pro-plant-action {
+  display: grid !important;
+  gap: 6px !important;
+  justify-items: stretch !important;
+  align-items: center !important;
+}
+
+.points-pro-plant-action b {
+  display: block !important;
+  text-align: center !important;
+  padding: 5px 7px !important;
+  border-radius: 999px !important;
+  background: #e6fff1 !important;
+  color: #077849 !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+  font-weight: 950 !important;
+}
+
+.points-pro-plant-action button {
+  width: 100% !important;
+  min-height: 32px !important;
+  border: none !important;
+  border-radius: 12px !important;
+  padding: 0 8px !important;
+  background: #0fc77a !important;
+  color: #ffffff !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+  font-weight: 950 !important;
+  box-shadow: none !important;
+}
+
+.points-pro-plant-action button:disabled {
+  background: #d9e8e0 !important;
+  color: #758a7f !important;
+}
+
+.points-pro-plant-action .points-request-status {
+  display: block !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 5px !important;
+  border-radius: 11px !important;
+  text-align: center !important;
+  font-size: 9.5px !important;
+  line-height: 1 !important;
+}
+
+.points-pro-rule-list {
+  display: grid !important;
+  gap: 8px !important;
+}
+
+.points-pro-rule-list p {
+  position: relative !important;
+  margin: 0 !important;
+  padding: 9px 10px 9px 32px !important;
+  border-radius: 15px !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(220, 239, 230, .95) !important;
+  color: #2d5b49 !important;
+  font-size: 12px !important;
+  line-height: 1.28 !important;
+  font-weight: 760 !important;
+}
+
+.points-pro-rule-list p::before {
+  content: "✓" !important;
+  position: absolute !important;
+  left: 10px !important;
+  top: 9px !important;
+  width: 15px !important;
+  height: 15px !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 5px !important;
+  background: #0fc77a !important;
+  color: #ffffff !important;
+  font-size: 10px !important;
+  font-weight: 950 !important;
+}
+
+@media (max-width: 390px) {
+  .points-page-pro {
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+  }
+
+  .points-pro-metrics {
+    gap: 7px !important;
+  }
+
+  .points-pro-metrics div {
+    padding: 9px 5px !important;
+  }
+
+  .points-pro-plant {
+    grid-template-columns: 52px 1fr 72px !important;
+    gap: 8px !important;
+    padding: 9px !important;
+  }
+
+  .points-pro-plant-img {
+    width: 52px !important;
+    height: 52px !important;
+  }
+
+  .points-pro-plant-img img {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  .points-pro-plant-info strong {
+    font-size: 13px !important;
+  }
+
+  .points-pro-plant-action b,
+  .points-pro-plant-action button {
+    font-size: 10.5px !important;
+  }
+}
+
+
+/* GREENVEST V71 - BANNER IMAGEN PLANTA GRATIS */
+.home-free-plant-image-banner {
+  display: block !important;
+  width: 100% !important;
+  margin: 12px 0 14px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 22px !important;
+  background: transparent !important;
+  overflow: hidden !important;
+  cursor: pointer !important;
+  box-shadow: 0 16px 32px rgba(0, 119, 72, 0.18) !important;
+}
+
+.home-free-plant-image-banner img {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 2 / 1 !important;
+  object-fit: cover !important;
+  border-radius: 22px !important;
+}
+
+
+/* GREENVEST V72 - BANNERS IMAGEN HOME + POPUP EVENTO */
+.home-lower-image-banners {
+  display: grid !important;
+  gap: 10px !important;
+  margin: 14px 0 12px !important;
+}
+
+.home-lower-image-banner {
+  display: block !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 20px !important;
+  background: transparent !important;
+  overflow: hidden !important;
+  box-shadow: 0 12px 24px rgba(0, 102, 59, 0.12) !important;
+  cursor: pointer !important;
+}
+
+.home-lower-image-banner img {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 3 / 1 !important;
+  object-fit: cover !important;
+  border-radius: 20px !important;
+}
+
+.home-free-plant-popup-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  display: grid !important;
+  place-items: center !important;
+  padding: 20px !important;
+  background: rgba(3, 35, 24, 0.34) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+.home-free-plant-popup {
+  width: min(430px, 100%) !important;
+  position: relative !important;
+  border-radius: 26px !important;
+  animation: homeFreePlantPopupIn 0.22s ease-out both !important;
+}
+
+.home-free-plant-popup-close {
+  position: absolute !important;
+  top: -12px !important;
+  right: -8px !important;
+  z-index: 2 !important;
+  width: 34px !important;
+  height: 34px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  color: #087448 !important;
+  font-size: 24px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  box-shadow: 0 10px 20px rgba(0, 86, 50, 0.18) !important;
+}
+
+.home-free-plant-popup-image {
+  display: block !important;
+  width: 100% !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 26px !important;
+  background: transparent !important;
+  overflow: hidden !important;
+  box-shadow: 0 24px 50px rgba(0, 79, 48, 0.26) !important;
+  cursor: pointer !important;
+}
+
+.home-free-plant-popup-image img {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 2 / 1 !important;
+  object-fit: cover !important;
+  border-radius: 26px !important;
+}
+
+@keyframes homeFreePlantPopupIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 390px) {
+  .home-lower-image-banners {
+    gap: 9px !important;
+  }
+
+  .home-lower-image-banner {
+    border-radius: 18px !important;
+  }
+
+  .home-lower-image-banner img {
+    border-radius: 18px !important;
+  }
+
+  .home-free-plant-popup-overlay {
+    padding: 14px !important;
+  }
+}
+
+
+/* GREENVEST V74 - PUNTOS COMPACTO + BANNERS SIMPLES */
+.points-pro-summary-compact {
+  display: grid !important;
+  grid-template-columns: 1fr auto !important;
+  align-items: center !important;
+  gap: 14px !important;
+  padding: 16px !important;
+  min-height: 118px !important;
+}
+
+.points-pro-summary-compact::after {
+  display: none !important;
+}
+
+.points-pro-summary-title {
+  min-width: 0 !important;
+}
+
+.points-pro-summary-compact .points-pro-badge {
+  margin-bottom: 10px !important;
+}
+
+.points-pro-summary-compact p {
+  margin: 0 !important;
+  color: #073b29 !important;
+  font-size: 16px !important;
+  line-height: 1.1 !important;
+  font-weight: 950 !important;
+}
+
+.points-pro-summary-compact small {
+  display: block !important;
+  max-width: 240px !important;
+  margin-top: 7px !important;
+  color: #59786a !important;
+  font-size: 11.5px !important;
+  line-height: 1.3 !important;
+  font-weight: 650 !important;
+}
+
+.points-pro-total {
+  min-width: 74px !important;
+  height: 74px !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 18px !important;
+  background: #e5fff1 !important;
+  color: #052d21 !important;
+  font-size: 34px !important;
+  line-height: 1 !important;
+  font-weight: 950 !important;
+  letter-spacing: -0.05em !important;
+  border: 1px solid rgba(8, 171, 101, 0.12) !important;
+}
+
+.points-pro-steps div {
+  grid-template-columns: 46px 1fr !important;
+}
+
+.points-pro-steps strong {
+  width: 46px !important;
+}
+
+.home-lower-image-banners {
+  padding: 0 !important;
+  gap: 10px !important;
+}
+
+.home-lower-image-banner {
+  width: 100% !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+  box-shadow: none !important;
+  display: block !important;
+}
+
+.home-lower-image-banner img {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 3 / 1 !important;
+  object-fit: cover !important;
+  border-radius: 14px !important;
+}
+
+@media (max-width: 390px) {
+  .points-pro-summary-compact {
+    grid-template-columns: 1fr 66px !important;
+    gap: 10px !important;
+    padding: 14px !important;
+  }
+
+  .points-pro-total {
+    min-width: 66px !important;
+    height: 66px !important;
+    font-size: 30px !important;
+    border-radius: 16px !important;
+  }
+
+  .points-pro-summary-compact small {
+    max-width: 210px !important;
+  }
+}

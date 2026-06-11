@@ -21,6 +21,8 @@ const marketRoutes = require("./routes/marketRoutes");
 const alchemyWebhookRoutes = require("./routes/alchemyWebhookRoutes");
 const promoEventRoutes = require("./routes/promoEventRoutes");
 const adminPromoEventRoutes = require("./routes/adminPromoEventRoutes");
+const freePlantPointsRoutes = require("./routes/freePlantPointsRoutes");
+const adminFreePlantPointsRoutes = require("./routes/adminFreePlantPointsRoutes");
 const { startAutomaticDepositScanner } = require("./services/depositScannerService");
 const { apiRateLimiter } = require("./middleware/rateLimitMiddleware");
 
@@ -93,7 +95,9 @@ app.use("/api/mining", miningRoutes);
 app.use("/api/hash-rewards", hashRewardsRoutes);
 app.use("/api/reinvest", reinvestRoutes);
 app.use("/api/promo-event", promoEventRoutes);
+app.use("/api/free-plants", freePlantPointsRoutes);
 app.use("/api/admin", adminPromoEventRoutes);
+app.use("/api/admin", adminFreePlantPointsRoutes);
 app.use("/api/market", marketRoutes);
 app.use("/api/webhooks/alchemy", alchemyWebhookRoutes);
 
