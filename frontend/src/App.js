@@ -23,6 +23,8 @@ import HashRewards from "./pages/HashRewards";
 import Reinvest from "./pages/Reinvest";
 import About from "./pages/About";
 import AdminPromoEvent from "./pages/AdminPromoEvent";
+import Points from "./pages/Points";
+import AdminFreePlants from "./pages/AdminFreePlants";
 
 import { FaHeadset, FaTelegramPlane, FaWhatsapp } from "react-icons/fa";
 
@@ -114,6 +116,7 @@ function ProtectedLayout() {
         <Route path="/home" element={<Home />} />
         <Route path="/promotion" element={<Promotion />} />
         <Route path="/vip" element={<Vip />} />
+        <Route path="/points" element={<Points />} />
         <Route path="/invite" element={<InviteFriends />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/recharge" element={<Recharge />} />
@@ -125,6 +128,7 @@ function ProtectedLayout() {
         <Route path="/admin/promo-event" element={<AdminPromoEvent />} />
         <Route path="/admin/security" element={<AdminSecurity />} />
         <Route path="/admin/growth" element={<AdminGrowth />} />
+        <Route path="/admin/free-plants" element={<AdminFreePlants />} />
         <Route path="/members/:level" element={<MembersList />} />
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/promo-event" element={<Navigate to="/home" replace />} />

@@ -589,6 +589,35 @@ export function addAdminManualMiningPower(payload) {
 }
 
 
+export function getFreePlantPointsStatus() {
+  return request("/free-plants/status", { method: "GET" });
+}
+
+export function redeemFreePlantWithPoints(packageId) {
+  return request("/free-plants/redeem", {
+    method: "POST",
+    body: JSON.stringify({ packageId }),
+  });
+}
+
+export function getAdminFreePlantRequests(status = "pending") {
+  return request(`/admin/free-plants/requests?status=${encodeURIComponent(status)}`, { method: "GET" });
+}
+
+export function approveAdminFreePlantRequest(id, note = "") {
+  return request(`/admin/free-plants/requests/${id}/approve`, {
+    method: "POST",
+    body: JSON.stringify({ note }),
+  });
+}
+
+export function rejectAdminFreePlantRequest(id, note = "") {
+  return request(`/admin/free-plants/requests/${id}/reject`, {
+    method: "POST",
+    body: JSON.stringify({ note }),
+  });
+}
+
 export function getPromoEventStatus() {
   return request("/promo-event/status", { method: "GET" });
 }

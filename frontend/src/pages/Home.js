@@ -132,6 +132,7 @@ export default function Home() {
   const [pointResetting, setPointResetting] = useState(false);
   const [liveStatsTick, setLiveStatsTick] = useState(Date.now());
   const [feedIndex, setFeedIndex] = useState(0);
+  const [showFreePlantPopup, setShowFreePlantPopup] = useState(true);
   const plantFeedRows = getPlantFeedRows(24);
 
   const loadHome = useCallback(async () => {
@@ -387,6 +388,33 @@ export default function Home() {
           </div>
         </div>
       )}
+      {showFreePlantPopup && (
+        <div className="home-free-plant-popup-overlay" onClick={() => setShowFreePlantPopup(false)}>
+          <div className="home-free-plant-popup" onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              className="home-free-plant-popup-close"
+              onClick={() => setShowFreePlantPopup(false)}
+              aria-label={t("Cerrar")}
+            >
+              ×
+            </button>
+
+            <button
+              type="button"
+              className="home-free-plant-popup-image"
+              onClick={() => {
+                setShowFreePlantPopup(false);
+                navigate("/points");
+              }}
+              aria-label={t("Gánate una planta gratis")}
+            >
+              <img src="/greenvest_banner_planta_gratis.png" alt="Gánate una planta gratis - Evento permanente GreenVest" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {installToast && (
         <div className="home-install-toast">
           <span>{installToast}</span>
@@ -506,21 +534,17 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="home-lower-banners">
-        <button type="button" className="home-lower-banner plants" onClick={() => navigate("/vip")}>
-          <div>
-            <strong>{t("Adquiere tus plantas")}</strong>
-            <span>{t("Elige tu planta y comienza a generar recompensas.")}</span>
-          </div>
-          <img src="/tree-icons/tree-5.png" alt="" />
+      <section className="home-lower-banners home-lower-image-banners">
+        <button type="button" className="home-lower-image-banner" onClick={() => navigate("/vip")} aria-label={t("Adquiere tus plantas")}>
+          <img src="/greenvest_banner_adquiere_plantas.png" alt="Adquiere tus plantas GreenVest" />
         </button>
 
-        <button type="button" className="home-lower-banner invite" onClick={() => navigate("/promotion")}>
-          <div>
-            <strong>{t("Invita a tus amigos")}</strong>
-            <span>{t("Haz crecer tu equipo y aumenta tus beneficios.")}</span>
-          </div>
-          <img src="/team-icons/team-invite-hero.png" alt="" />
+        <button type="button" className="home-lower-image-banner" onClick={() => navigate("/points")} aria-label={t("Puntos GreenVest")}>
+          <img src="/greenvest_banner_puntos.png" alt="Puntos GreenVest" />
+        </button>
+
+        <button type="button" className="home-lower-image-banner" onClick={() => navigate("/promotion")} aria-label={t("Invita a tus amigos")}>
+          <img src="/greenvest_banner_invita_amigos.png" alt="Invita a tus amigos GreenVest" />
         </button>
       </section>
 

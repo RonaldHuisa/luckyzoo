@@ -11,6 +11,7 @@ import {
   FiShield,
   FiDownloadCloud,
   FiPlusCircle,
+  FiGift,
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { getAdminStatus } from "../services/authService";
@@ -230,6 +231,20 @@ export default function AdminStatus() {
                 <span>Recompensa máxima</span>
                 <strong>50.00 USDT total</strong>
               </div>
+            </div>
+          </section>
+
+          <section className="panel admin-status-section">
+            <div className="admin-status-section-title admin-status-section-title-action">
+              <FiGift />
+              <div>
+                <h3>Plantas por puntos</h3>
+                <p>Revisa y aprueba solicitudes del evento permanente.</p>
+              </div>
+              <button className="admin-status-small-action" type="button" onClick={() => navigate("/admin/free-plants")}>
+                <FiGift />
+                Gestionar
+              </button>
             </div>
           </section>
 
