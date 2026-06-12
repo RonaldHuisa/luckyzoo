@@ -26,7 +26,7 @@ import AdminPromoEvent from "./pages/AdminPromoEvent";
 import Points from "./pages/Points";
 import AdminFreePlants from "./pages/AdminFreePlants";
 
-import { FaHeadset, FaTelegramPlane, FaWhatsapp } from "react-icons/fa";
+import { FaHeadset, FaTelegramPlane } from "react-icons/fa";
 
 import { LanguageProvider } from "./i18n/I18nContext";
 import DomTranslator from "./i18n/DomTranslator";
@@ -38,7 +38,7 @@ function isAuthenticated() {
 }
 
 const GREENVEST_TELEGRAM_SUPPORT_URL = "https://t.me/GreenVestSoporte";
-const GREENVEST_WHATSAPP_CHANNEL_URL = "https://whatsapp.com/channel/0029VbDLIiKF1YlShBn1GR0u";
+const GREENVEST_TELEGRAM_COMMUNITY_URL = "https://t.me/+5k24qwv-a8I4YzRk";
 
 function FloatingWhatsappSupport() {
   const [isOpen, setIsOpen] = useState(false);
@@ -88,12 +88,12 @@ function FloatingWhatsappSupport() {
 
             <button
               type="button"
-              className="floating-support-option whatsapp"
-              onClick={() => openExternal(GREENVEST_WHATSAPP_CHANNEL_URL)}
+              className="floating-support-option telegram"
+              onClick={() => openExternal(GREENVEST_TELEGRAM_COMMUNITY_URL)}
             >
-              <span><FaWhatsapp /></span>
-              <strong>Canal GreenVest</strong>
-              <em>WhatsApp</em>
+              <span><FaTelegramPlane /></span>
+              <strong>Comunidad GreenVest</strong>
+              <em>Telegram</em>
             </button>
           </div>
         </div>

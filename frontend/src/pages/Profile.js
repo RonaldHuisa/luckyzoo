@@ -11,12 +11,12 @@ import {
   FiTrendingUp,
   FiUsers,
 } from "react-icons/fi";
-import { FaTelegramPlane, FaWhatsapp } from "react-icons/fa";
+import { FaTelegramPlane } from "react-icons/fa";
 import { getUser, logout, changePassword, getVipStatus } from "../services/authService";
 import { useI18n } from "../i18n/I18nContext";
 
 const TELEGRAM_SUPPORT_URL = "https://t.me/GreenVestSoporte";
-const WHATSAPP_CHANNEL_URL = "https://whatsapp.com/channel/0029VbDLIiKF1YlShBn1GR0u";
+const TELEGRAM_COMMUNITY_URL = "https://t.me/+5k24qwv-a8I4YzRk";
 const DEFAULT_TREE_IMAGE = "/GreenVest_ico.png";
 
 function getTreeImage(level) {
@@ -270,9 +270,9 @@ export default function Profile() {
               <FiArrowRight />
             </button>
 
-            <button className="support-whatsapp-option" type="button" onClick={() => openExternal(WHATSAPP_CHANNEL_URL)}>
-              <span className="profile-support-icon whatsapp"><FaWhatsapp /></span>
-              <strong>Canal GreenVest</strong>
+            <button className="support-telegram-option" type="button" onClick={() => openExternal(TELEGRAM_COMMUNITY_URL)}>
+              <span className="profile-support-icon telegram"><FaTelegramPlane /></span>
+              <strong>Comunidad GreenVest</strong>
               <FiArrowRight />
             </button>
           </div>
