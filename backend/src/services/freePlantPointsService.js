@@ -1,6 +1,10 @@
 const pool = require("../config/db");
 const { ensureGreenVestTreeSchema } = require("./greenVestTreeService");
 
+// Inicio oficial del evento de Puntos GreenVest.
+// Solo cuentan invitados registrados desde esta fecha UTC en adelante.
+const FREE_PLANT_POINTS_EVENT_START_AT = process.env.FREE_PLANT_POINTS_EVENT_START_AT || "2026-06-12 00:00:00";
+
 function toNumber(value) {
   const n = Number(value || 0);
   return Number.isFinite(n) ? n : 0;
@@ -82,15 +86,17 @@ async function syncDirectInvitePoints(clientOrPool, userId) {
         invited.id,
         invited.email,
         invited.register_ip,
+        invited.created_at,
         ROW_NUMBER() OVER (PARTITION BY invited.register_ip ORDER BY invited.created_at ASC, invited.id ASC) AS ip_rank
       FROM users invited
       JOIN sponsor s ON invited.referred_by_id = s.id
-      WHERE invited.register_ip IS NOT NULL
+      WHERE invited.created_at >= $2::timestamp
+        AND invited.register_ip IS NOT NULL
         AND invited.register_ip <> ''
         AND (s.register_ip IS NULL OR invited.register_ip <> s.register_ip)
     ),
     valid_invites AS (
-      SELECT id, email, register_ip
+      SELECT id, email, register_ip, created_at
       FROM direct_invites
       WHERE ip_rank = 1
     )
@@ -103,13 +109,13 @@ async function syncDirectInvitePoints(clientOrPool, userId) {
       vi.id,
       1,
       'Invitado válido registrado con IP única',
-      jsonb_build_object('email', vi.email, 'register_ip', vi.register_ip)
+      jsonb_build_object('email', vi.email, 'register_ip', vi.register_ip, 'eventStartAt', $2, 'invitedCreatedAt', vi.created_at)
     FROM valid_invites vi
     ON CONFLICT (user_id, source_type, source_id)
     WHERE source_id IS NOT NULL
     DO NOTHING
     `,
-    [userId]
+    [userId, FREE_PLANT_POINTS_EVENT_START_AT]
   );
 }
 
@@ -122,7 +128,7 @@ async function isValidDirectInviteForPoints(clientOrPool, sponsorId, invitedUser
       WHERE id = $1
     ),
     invited AS (
-      SELECT id, referred_by_id, register_ip
+      SELECT id, referred_by_id, register_ip, created_at
       FROM users
       WHERE id = $2
     ),
@@ -130,7 +136,8 @@ async function isValidDirectInviteForPoints(clientOrPool, sponsorId, invitedUser
       SELECT COUNT(*)::int AS total
       FROM users u
       JOIN invited i ON u.referred_by_id = $1
-      WHERE u.register_ip = i.register_ip
+      WHERE u.created_at >= $3::timestamp
+        AND u.register_ip = i.register_ip
         AND u.register_ip IS NOT NULL
         AND u.register_ip <> ''
     )
@@ -138,6 +145,7 @@ async function isValidDirectInviteForPoints(clientOrPool, sponsorId, invitedUser
       CASE
         WHEN i.id IS NULL THEN false
         WHEN i.referred_by_id <> $1 THEN false
+        WHEN i.created_at < $3::timestamp THEN false
         WHEN i.register_ip IS NULL OR i.register_ip = '' THEN false
         WHEN s.register_ip IS NOT NULL AND i.register_ip = s.register_ip THEN false
         WHEN sid.total > 1 THEN false
@@ -147,7 +155,7 @@ async function isValidDirectInviteForPoints(clientOrPool, sponsorId, invitedUser
     CROSS JOIN invited i
     CROSS JOIN same_ip_directs sid
     `,
-    [sponsorId, invitedUserId]
+    [sponsorId, invitedUserId, FREE_PLANT_POINTS_EVENT_START_AT]
   );
 
   return Boolean(result.rows[0]?.valid);
