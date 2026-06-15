@@ -100,9 +100,23 @@ async function approveFreePlantRequest(req, res) {
     }
 
     const summary = await getPointsSummary(client, request.user_id);
-    if (summary.availablePoints < Number(request.points_cost || 0)) {
+    const requestCost = Number(request.points_cost || 0);
+
+    /*
+      IMPORTANTE:
+      getPointsSummary() descuenta las solicitudes pending/approved como puntos reservados.
+      Esta solicitud pendiente ya está incluida en usedPoints, por eso al aprobarla no debemos
+      volver a exigir que esos puntos estén "disponibles"; debemos validar los puntos disponibles
+      excluyendo esta misma solicitud.
+    */
+    const usedByOtherRequests = Math.max(Number(summary.usedPoints || 0) - requestCost, 0);
+    const availableForThisApproval = Math.max(Number(summary.totalPoints || 0) - usedByOtherRequests, 0);
+
+    if (availableForThisApproval < requestCost) {
       await client.query("ROLLBACK");
-      return res.status(400).json({ message: "El usuario ya no tiene puntos disponibles suficientes." });
+      return res.status(400).json({
+        message: `El usuario ya no tiene puntos suficientes. Tiene ${availableForThisApproval} disponibles y necesita ${requestCost}.`,
+      });
     }
 
     const bonusDays = 15;
