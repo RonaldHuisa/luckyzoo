@@ -132,7 +132,7 @@ export default function Home() {
   const [pointResetting, setPointResetting] = useState(false);
   const [liveStatsTick, setLiveStatsTick] = useState(Date.now());
   const [feedIndex, setFeedIndex] = useState(0);
-  const [showFreePlantPopup, setShowFreePlantPopup] = useState(true);
+  const [showPromoBonusPopup, setShowPromoBonusPopup] = useState(true);
   const plantFeedRows = getPlantFeedRows(24);
 
   const loadHome = useCallback(async () => {
@@ -388,13 +388,13 @@ export default function Home() {
           </div>
         </div>
       )}
-      {showFreePlantPopup && (
-        <div className="home-free-plant-popup-overlay" onClick={() => setShowFreePlantPopup(false)}>
+      {showPromoBonusPopup && (
+        <div className="home-free-plant-popup-overlay" onClick={() => setShowPromoBonusPopup(false)}>
           <div className="home-free-plant-popup" onClick={(event) => event.stopPropagation()}>
             <button
               type="button"
               className="home-free-plant-popup-close"
-              onClick={() => setShowFreePlantPopup(false)}
+              onClick={() => setShowPromoBonusPopup(false)}
               aria-label={t("Cerrar")}
             >
               ×
@@ -404,12 +404,12 @@ export default function Home() {
               type="button"
               className="home-free-plant-popup-image"
               onClick={() => {
-                setShowFreePlantPopup(false);
-                navigate("/points");
+                setShowPromoBonusPopup(false);
+                navigate("/promociones");
               }}
-              aria-label={t("Gánate una planta gratis")}
+              aria-label="Bono de 5% GreenVest"
             >
-              <img src="/greenvest_banner_planta_gratis.png" alt="Gánate una planta gratis - Evento permanente GreenVest" />
+              <img src="/greenvest_bono_5_junio_21_24.png" alt="Bono de 5% GreenVest del 21 al 24 de junio" />
             </button>
           </div>
         </div>

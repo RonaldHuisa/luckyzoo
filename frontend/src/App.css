@@ -32348,3 +32348,310 @@ body,
     border-radius: 10px !important;
   }
 }
+
+/* GREENVEST V121 - PROMOCIÓN BONO 5% JUNIO */
+.home-free-plant-popup-image img {
+  aspect-ratio: 4 / 3 !important;
+  object-fit: contain !important;
+  background: #f4fff8 !important;
+}
+
+.promociones-page.promo-bono-page {
+  color: #083927 !important;
+  padding-bottom: 96px !important;
+}
+
+.promo-bono-header {
+  display: grid !important;
+  grid-template-columns: 44px 1fr 44px !important;
+  align-items: center !important;
+  gap: 10px !important;
+  margin-bottom: 14px !important;
+}
+
+.promo-bono-header > div {
+  text-align: center !important;
+}
+
+.promo-bono-header span {
+  display: block !important;
+  color: #c6ffe0 !important;
+  font-size: 10px !important;
+  text-transform: uppercase !important;
+  letter-spacing: .12em !important;
+  font-weight: 900 !important;
+}
+
+.promo-bono-header h2 {
+  margin: 2px 0 0 !important;
+  color: #ffffff !important;
+  font-size: 21px !important;
+  line-height: 1.05 !important;
+  font-weight: 950 !important;
+}
+
+.promo-bono-header-icon {
+  width: 44px !important;
+  height: 44px !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 16px !important;
+  background: rgba(225, 255, 238, 0.92) !important;
+  border: 1px solid rgba(165, 239, 197, 0.95) !important;
+  color: #087448 !important;
+  font-size: 20px !important;
+}
+
+.promo-bono-banner-card {
+  display: block !important;
+  width: 100% !important;
+  margin: 0 0 12px !important;
+  padding: 0 !important;
+  border-radius: 24px !important;
+  background: #f4fff8 !important;
+  overflow: hidden !important;
+  box-shadow: 0 18px 36px rgba(0, 102, 59, 0.18) !important;
+}
+
+.promo-bono-banner-card img {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  object-fit: contain !important;
+}
+
+.promo-bono-card,
+.promo-bono-support-card {
+  margin-bottom: 12px !important;
+  padding: 15px !important;
+  border-radius: 22px !important;
+  background: #f1fff7 !important;
+  border: 1px solid #cceede !important;
+  box-shadow: 0 12px 24px rgba(0, 96, 56, 0.08) !important;
+  color: #073b29 !important;
+}
+
+.promo-bono-main-copy {
+  background:
+    radial-gradient(circle at 85% 10%, rgba(114, 255, 172, 0.35), transparent 32%),
+    linear-gradient(180deg, #f4fff8 0%, #e7fff1 100%) !important;
+}
+
+.promo-bono-pill {
+  width: max-content !important;
+  max-width: 100% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  margin-bottom: 10px !important;
+  padding: 7px 11px !important;
+  border-radius: 999px !important;
+  background: #0fc77a !important;
+  color: #ffffff !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+  font-weight: 950 !important;
+}
+
+.promo-bono-card h3,
+.promo-bono-support-card h3 {
+  margin: 0 !important;
+  color: #073b29 !important;
+  font-size: 18px !important;
+  line-height: 1.12 !important;
+  font-weight: 950 !important;
+  letter-spacing: -.03em !important;
+}
+
+.promo-bono-card p,
+.promo-bono-support-card p {
+  margin: 8px 0 0 !important;
+  color: #2d5b49 !important;
+  font-size: 12.5px !important;
+  line-height: 1.45 !important;
+  font-weight: 700 !important;
+}
+
+.promo-bono-card strong,
+.promo-bono-support-card strong {
+  color: #008957 !important;
+  font-weight: 950 !important;
+}
+
+.promo-bono-section-title {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 10px !important;
+  margin-bottom: 12px !important;
+}
+
+.promo-bono-section-title > svg {
+  flex: 0 0 auto !important;
+  width: 38px !important;
+  height: 38px !important;
+  padding: 9px !important;
+  border-radius: 14px !important;
+  background: #dcffec !important;
+  color: #0aa766 !important;
+}
+
+.promo-bono-section-title p {
+  margin-top: 4px !important;
+  color: #6b8879 !important;
+  font-size: 11.5px !important;
+}
+
+.promo-bono-example-list {
+  display: grid !important;
+  gap: 9px !important;
+}
+
+.promo-bono-example-card {
+  display: grid !important;
+  grid-template-columns: 1fr auto !important;
+  align-items: center !important;
+  gap: 7px 10px !important;
+  padding: 12px !important;
+  border-radius: 18px !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(215, 238, 226, 0.95) !important;
+}
+
+.promo-bono-example-card span,
+.promo-bono-example-card em,
+.promo-bono-example-card small {
+  display: block !important;
+  font-style: normal !important;
+}
+
+.promo-bono-example-card span {
+  color: #0aa766 !important;
+  font-size: 11px !important;
+  font-weight: 950 !important;
+}
+
+.promo-bono-example-card strong {
+  display: block !important;
+  margin-top: 3px !important;
+  color: #073b29 !important;
+  font-size: 16px !important;
+  font-weight: 950 !important;
+}
+
+.promo-bono-example-card em {
+  justify-self: end !important;
+  color: #789184 !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .08em !important;
+}
+
+.promo-bono-example-card b {
+  justify-self: end !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  min-height: 32px !important;
+  padding: 0 12px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(135deg, #10c979, #088b55) !important;
+  color: #ffffff !important;
+  font-size: 14px !important;
+  font-weight: 950 !important;
+  box-shadow: 0 10px 18px rgba(0, 151, 88, 0.18) !important;
+}
+
+.promo-bono-example-card small {
+  grid-column: 1 / -1 !important;
+  color: #5c7d6d !important;
+  font-size: 11px !important;
+  font-weight: 750 !important;
+}
+
+.promo-bono-rules-list {
+  display: grid !important;
+  gap: 8px !important;
+}
+
+.promo-bono-rules-list p {
+  position: relative !important;
+  margin: 0 !important;
+  padding: 10px 10px 10px 32px !important;
+  border-radius: 15px !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(220, 239, 230, 0.95) !important;
+  color: #2d5b49 !important;
+  font-size: 12px !important;
+  line-height: 1.34 !important;
+  font-weight: 760 !important;
+}
+
+.promo-bono-rules-list p::before {
+  content: "✓" !important;
+  position: absolute !important;
+  left: 10px !important;
+  top: 10px !important;
+  width: 15px !important;
+  height: 15px !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 5px !important;
+  background: #0fc77a !important;
+  color: #ffffff !important;
+  font-size: 10px !important;
+  font-weight: 950 !important;
+}
+
+.promo-bono-support-card {
+  display: grid !important;
+  grid-template-columns: 48px 1fr !important;
+  gap: 12px !important;
+  background:
+    radial-gradient(circle at 90% 20%, rgba(161, 255, 198, 0.42), transparent 34%),
+    linear-gradient(135deg, #eafff4 0%, #bff8d9 100%) !important;
+}
+
+.promo-bono-support-card > span {
+  width: 48px !important;
+  height: 48px !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 17px !important;
+  background: #0c8a55 !important;
+  color: #ffffff !important;
+  font-size: 23px !important;
+}
+
+.promo-bono-support-card a {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 42px !important;
+  margin-top: 12px !important;
+  padding: 0 16px !important;
+  border-radius: 14px !important;
+  background: linear-gradient(135deg, #0c8a55, #08c778) !important;
+  color: #ffffff !important;
+  text-decoration: none !important;
+  font-size: 13px !important;
+  font-weight: 950 !important;
+  box-shadow: 0 12px 22px rgba(0, 125, 75, 0.2) !important;
+}
+
+@media (max-width: 390px) {
+  .promo-bono-card,
+  .promo-bono-support-card {
+    padding: 13px !important;
+    border-radius: 20px !important;
+  }
+
+  .promo-bono-card h3,
+  .promo-bono-support-card h3 {
+    font-size: 16.5px !important;
+  }
+
+  .promo-bono-example-card b {
+    font-size: 12.5px !important;
+    padding: 0 10px !important;
+  }
+}

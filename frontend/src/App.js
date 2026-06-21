@@ -5,6 +5,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Home from "./pages/Home";
 import Promotion from "./pages/Promotion";
+import Promociones from "./pages/Promociones";
 import Vip from "./pages/Vip";
 import InviteFriends from "./pages/InviteFriends";
 import Profile from "./pages/Profile";
@@ -115,6 +116,7 @@ function ProtectedLayout() {
       <Routes>
         <Route path="/home" element={<Home />} />
         <Route path="/promotion" element={<Promotion />} />
+        <Route path="/promociones" element={<Promociones />} />
         <Route path="/vip" element={<Vip />} />
         <Route path="/points" element={<Points />} />
         <Route path="/invite" element={<InviteFriends />} />
