@@ -32655,3 +32655,20 @@ body,
     padding: 0 10px !important;
   }
 }
+
+/* GREENVEST V122 - Concurso de referidos hasta 5 de julio */
+.home-free-plant-popup-image img {
+  aspect-ratio: 1 / 1 !important;
+  object-fit: contain !important;
+  background: #f7fff8 !important;
+}
+
+.promo-referral-banner-card img {
+  aspect-ratio: 1 / 1 !important;
+  object-fit: contain !important;
+  background: #f7fff8 !important;
+}
+
+.promo-referral-prize-card b {
+  background: linear-gradient(135deg, #0b7f4e, #f0c747) !important;
+}

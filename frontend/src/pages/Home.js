@@ -407,9 +407,9 @@ export default function Home() {
                 setShowPromoBonusPopup(false);
                 navigate("/promociones");
               }}
-              aria-label="Bono de 5% GreenVest"
+              aria-label="Concurso de referidos GreenVest"
             >
-              <img src="/greenvest_bono_5_junio_21_24.png" alt="Bono de 5% GreenVest del 21 al 24 de junio" />
+              <img src="/greenvest_concurso_referidos_julio5.png" alt="Concurso de referidos GreenVest hasta el 5 de julio" />
             </button>
           </div>
         </div>

@@ -1,76 +1,108 @@
 import React from "react";
-import { FiArrowLeft, FiCalendar, FiCheckCircle, FiDollarSign, FiHeadphones, FiShoppingBag } from "react-icons/fi";
+import { FiArrowLeft, FiAward, FiCalendar, FiCheckCircle, FiGift, FiHeadphones, FiUsers } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 
 const SUPPORT_URL = "https://t.me/GreenVestSoporte";
 
-const promoExamples = [
+const prizes = [
   {
-    plant: "Planta Rubí",
-    price: "80 USDT",
-    bonus: "4.00 USDT",
+    rank: "TOP 1",
+    prize: "300 USDT",
+    note: "Mayor cantidad de puntos válidos",
   },
   {
-    plant: "Planta Amatista",
-    price: "150 USDT",
-    bonus: "7.50 USDT",
+    rank: "TOP 2",
+    prize: "150 USDT",
+    note: "Segundo mejor ranking del concurso",
   },
   {
-    plant: "Planta Topacio",
-    price: "350 USDT",
-    bonus: "17.50 USDT",
+    rank: "TOP 3",
+    prize: "50 USDT",
+    note: "Tercer mejor ranking del concurso",
   },
+];
+
+const pointsExamples = [
+  { plant: "Planta Esmeralda", points: "1 punto" },
+  { plant: "Planta Zafiro", points: "2 puntos" },
+  { plant: "Planta Rubí", points: "3 puntos" },
+  { plant: "Planta Amatista", points: "4 puntos" },
+  { plant: "Planta Topacio", points: "5 puntos" },
 ];
 
 export default function Promociones() {
   const navigate = useNavigate();
 
   return (
-    <div className="page promociones-page promo-bono-page">
+    <div className="page promociones-page promo-bono-page promo-referral-page">
       <header className="promo-bono-header">
         <button className="icon-btn" type="button" onClick={() => navigate("/home")} aria-label="Volver al inicio">
           <FiArrowLeft />
         </button>
         <div>
-          <span>Promoción GreenVest</span>
-          <h2>Bono de recarga</h2>
+          <span>Evento GreenVest</span>
+          <h2>Concurso de referidos</h2>
         </div>
-        <span className="promo-bono-header-icon"><FiDollarSign /></span>
+        <span className="promo-bono-header-icon"><FiAward /></span>
       </header>
 
-      <section className="promo-bono-banner-card">
-        <img src="/greenvest_bono_5_junio_21_24.png" alt="Bono de 5% GreenVest del 21 al 24 de junio" />
+      <section className="promo-bono-banner-card promo-referral-banner-card">
+        <img src="/greenvest_concurso_referidos_julio5.png" alt="Concurso de referidos GreenVest hasta el 5 de julio" />
       </section>
 
       <section className="promo-bono-card promo-bono-main-copy">
-        <div className="promo-bono-pill"><FiCalendar /> Del 21 al 24 de junio</div>
-        <h3>Bono especial de 5% en saldo retirable</h3>
+        <div className="promo-bono-pill"><FiCalendar /> Hasta el 5 de julio</div>
+        <h3>Invita usuarios y sube al ranking GreenVest</h3>
         <p>
-          La compra es válida para plantas desde <strong>Planta Zafiro en adelante</strong>.
-          Al adquirir una planta válida dentro de las fechas de la promoción, recibirás un
-          bono equivalente al <strong>5% del valor de la planta</strong> directamente como saldo retirable.
+          Participa invitando nuevos usuarios a tu equipo. Para que un referido sea válido,
+          debe registrarse con tu enlace e ingresar una recarga/compra de planta durante el
+          periodo del evento, desde ahora hasta el <strong>5 de julio</strong>.
         </p>
       </section>
 
       <section className="promo-bono-card">
         <div className="promo-bono-section-title">
-          <FiShoppingBag />
+          <FiGift />
           <div>
-            <h3>Ejemplos de bono</h3>
-            <p>Estos son ejemplos para que el cálculo quede claro.</p>
+            <h3>Premios del ranking</h3>
+            <p>Los usuarios con más puntos válidos ganan los premios principales.</p>
           </div>
         </div>
 
         <div className="promo-bono-example-list">
-          {promoExamples.map((item) => (
+          {prizes.map((item) => (
+            <article key={item.rank} className="promo-bono-example-card promo-referral-prize-card">
+              <div>
+                <span>{item.rank}</span>
+                <strong>{item.prize}</strong>
+              </div>
+              <em>premio</em>
+              <b>{item.prize}</b>
+              <small>{item.note}</small>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="promo-bono-card">
+        <div className="promo-bono-section-title">
+          <FiUsers />
+          <div>
+            <h3>Cómo se calculan los puntos</h3>
+            <p>Mientras mayor sea la planta recargada por tu referido válido, más puntos suma.</p>
+          </div>
+        </div>
+
+        <div className="promo-bono-example-list">
+          {pointsExamples.map((item) => (
             <article key={item.plant} className="promo-bono-example-card">
               <div>
                 <span>{item.plant}</span>
-                <strong>{item.price}</strong>
+                <strong>{item.points}</strong>
               </div>
-              <em>recibes</em>
-              <b>{item.bonus}</b>
-              <small>en saldo retirable</small>
+              <em>suma</em>
+              <b>{item.points}</b>
+              <small>Cuenta solo si el referido compra/recarga una planta válida dentro del evento.</small>
             </article>
           ))}
         </div>
@@ -80,26 +112,27 @@ export default function Promociones() {
         <div className="promo-bono-section-title">
           <FiCheckCircle />
           <div>
-            <h3>Condiciones principales</h3>
-            <p>Revisa las reglas antes de participar.</p>
+            <h3>Reglas principales</h3>
+            <p>Revisa las condiciones para que tus invitados cuenten en el concurso.</p>
           </div>
         </div>
 
         <div className="promo-bono-rules-list">
-          <p>Aplica solo para compras realizadas entre el <strong>21 y el 24 de junio</strong>.</p>
-          <p>Aplica desde <strong>Planta Zafiro o superior</strong>; no aplica para plantas inferiores.</p>
-          <p>El bono se entrega como <strong>saldo retirable</strong>, no como saldo de recarga.</p>
-          <p>Después de comprar, debes contactar a soporte para validar la promoción.</p>
+          <p>Solo cuentan referidos directos que se registren con tu enlace o código de invitación.</p>
+          <p>El referido debe recargar/comprar una planta desde ahora hasta el <strong>5 de julio</strong>.</p>
+          <p>Cada referido válido suma puntos según la planta que compre: Nivel 1 suma 1 punto, Nivel 2 suma 2 puntos, y así consecutivamente.</p>
+          <p>El ranking se ordena por la mayor cantidad de puntos válidos acumulados durante el evento.</p>
+          <p>GreenVest podrá revisar actividad duplicada, sospechosa o inválida antes de entregar premios.</p>
         </div>
       </section>
 
       <section className="promo-bono-support-card">
         <span><FiHeadphones /></span>
         <div>
-          <h3>¿Ya compraste tu planta?</h3>
+          <h3>¿Necesitas validar tus puntos?</h3>
           <p>
-            Contacta a soporte GreenVest con tu usuario y la planta adquirida para que revisen
-            tu compra y acrediten el bono correspondiente.
+            Contacta a soporte GreenVest con tu usuario para consultar el estado de tus referidos
+            válidos y recibir ayuda durante el concurso.
           </p>
           <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer">
             Contactar soporte
