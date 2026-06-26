@@ -1,9 +1,9 @@
-const CACHE_NAME = "greenvest-pwa-v120";
+const CACHE_NAME = "greenvest-pwa-v122";
 const STATIC_ASSETS = [
-  "/manifest.json?v=greenvest-v120",
-  "/favicon.ico?v=greenvest-v120",
-  "/icons/icon-192.png?v=greenvest-v120",
-  "/icons/icon-512.png?v=greenvest-v120"
+  "/manifest.json?v=greenvest-v122",
+  "/favicon.ico?v=greenvest-v122",
+  "/icons/icon-192.png?v=greenvest-v122",
+  "/icons/icon-512.png?v=greenvest-v122"
 ];
 
 self.addEventListener("install", (event) => {
