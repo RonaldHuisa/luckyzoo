@@ -1,329 +1,167 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { FiCheckCircle, FiCopy, FiRefreshCw } from "react-icons/fi";
 import { QRCodeCanvas } from "qrcode.react";
-import {
-  FiArrowLeft,
-  FiChevronRight,
-  FiCopy,
-  FiInfo,
-  FiList,
-} from "react-icons/fi";
-import { getMyWalletFromApi, scanMyDeposits } from "../services/authService";
-import { useI18n } from "../i18n/I18nContext";
+import api from "../services/api";
+import bep20Icon from "../assets/networks/usdt-bep20.png";
+import polygonIcon from "../assets/networks/usdt-polygon.png";
 
-const PAYMENT_NETWORKS = [
-  {
-    code: "BEP20-USDT",
-    label: "BEP20-USDT",
-    shortLabel: "BEP20-USDT",
-    chain: "BNB Smart Chain BEP20",
-    description: "BNB Smart Chain",
-    token: "USDT",
-    icon: "/images/networks/bep20-usdt.webp",
-    enabled: true,
-  },
-  {
-    code: "POLYGON-USDT",
-    label: "POLYGON-USDT",
-    shortLabel: "POLYGON-USDT",
-    chain: "Polygon",
-    description: "Polygon",
-    token: "USDT",
-    icon: "/images/networks/polygon-usdt.webp",
-    enabled: true,
-  },
+const FALLBACK_NETWORKS = [
+  { code: "BEP20-USDT", displayName: "BEP20" },
+  { code: "POLYGON-USDT", displayName: "POLYGON" },
 ];
 
-function getNetworkByCode(code) {
-  return PAYMENT_NETWORKS.find((item) => item.code === code) || PAYMENT_NETWORKS[0];
+function networkInfo(code) {
+  if (code === "POLYGON-USDT") {
+    return {
+      icon: polygonIcon,
+      label: "POLYGON",
+      sublabel: "USDT · Polygon",
+      badge: "POLYGON",
+    };
+  }
+  return {
+    icon: bep20Icon,
+    label: "BEP20",
+    sublabel: "USDT · BNB Smart Chain",
+    badge: "BEP20",
+  };
 }
 
 export default function Recharge() {
-  const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { t } = useI18n();
-  const toastTimerRef = useRef(null);
-
-  const initialNetwork = searchParams.get("network") || "";
-  const [selectedNetwork, setSelectedNetwork] = useState(initialNetwork);
+  const [network, setNetwork] = useState("BEP20-USDT");
   const [wallet, setWallet] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [scanning, setScanning] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [toast, setToast] = useState("");
-  const [toastType, setToastType] = useState("info");
+  const [supported, setSupported] = useState([]);
+  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState("");
 
-  const isSelectingNetwork = !selectedNetwork;
+  const networks = useMemo(() => (supported.length ? supported : FALLBACK_NETWORKS), [supported]);
+  const selectedNetwork = networkInfo(network);
 
-  const currentNetwork = useMemo(
-    () => getNetworkByCode(selectedNetwork || "BEP20-USDT"),
-    [selectedNetwork]
-  );
+  const showToast = (text) => {
+    setToast(text);
+    window.clearTimeout(window.__royalRechargeToastTimer);
+    window.__royalRechargeToastTimer = window.setTimeout(() => setToast(""), 1200);
+  };
 
-  const showToast = useCallback((message, type = "info", duration = 3200) => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-
-    setToast(message);
-    setToastType(type);
-
-    toastTimerRef.current = setTimeout(() => {
-      setToast("");
-    }, duration);
-  }, []);
-
-  const loadWallet = useCallback(async () => {
-    if (!selectedNetwork) return;
-
+  const loadWallet = async (selected = network) => {
+    setError("");
     try {
-      setLoading(true);
-      setError("");
-      const data = await getMyWalletFromApi(selectedNetwork);
-      setWallet(data.wallet || data);
+      const { data } = await api.get(`/wallet/me?network=${encodeURIComponent(selected)}`);
+      setWallet(data.wallet);
+      setSupported(data.supportedNetworks || []);
     } catch (err) {
-      const message = err.message || t("No se pudo cargar la dirección de depósito.");
-      setError(message);
-      showToast(message, "error");
-    } finally {
-      setLoading(false);
+      setError(err.message);
     }
-  }, [selectedNetwork, showToast, t]);
+  };
 
   useEffect(() => {
     loadWallet();
+    return () => window.clearTimeout(window.__royalRechargeToastTimer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    return () => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    };
-  }, [loadWallet]);
-
-  const address =
-    wallet?.address ||
-    wallet?.wallet_address ||
-    wallet?.walletAddress ||
-    wallet?.deposit_address ||
-    wallet?.depositAddress ||
-    wallet?.usdt_address ||
-    wallet?.usdtAddress ||
-    wallet?.bep20_address ||
-    wallet?.bep20Address ||
-    "";
-
-  const handleSelectNetwork = (networkCode) => {
-    setWallet(null);
-    setError("");
-    setSelectedNetwork(networkCode);
-    setSearchParams({ network: networkCode });
+  const changeNetwork = (value) => {
+    setNetwork(value);
+    loadWallet(value);
   };
 
-  const handleBack = () => {
-    if (!isSelectingNetwork) {
-      setSelectedNetwork("");
-      setWallet(null);
-      setError("");
-      setSearchParams({});
-      return;
-    }
-
-    navigate("/home");
-  };
-
-  const handleCopy = async () => {
-    if (!address) return;
-
+  const copyAddress = async () => {
+    if (!wallet?.address) return;
     try {
-      await navigator.clipboard.writeText(address);
-      setCopied(true);
-      showToast(t("Dirección copiada"), "success", 2200);
-
-      setTimeout(() => {
-        setCopied(false);
-      }, 1600);
-    } catch {
-      const message = t("No se pudo copiar la dirección.");
-      setError(message);
-      showToast(message, "error");
-    }
-  };
-
-  const handleScan = async () => {
-    try {
-      setScanning(true);
-      setError("");
-
-      const scanResult = await scanMyDeposits(selectedNetwork);
-      const addedAmount = Number(scanResult?.addedAmount || 0);
-      const addedDeposits = Number(scanResult?.addedDeposits || 0);
-      const reconciledCreditAmount = Number(scanResult?.reconciledCreditAmount || 0);
-      const credited = Boolean(scanResult?.credited) || addedDeposits > 0 || addedAmount > 0 || reconciledCreditAmount > 0;
-      const alreadyProcessed = Boolean(scanResult?.alreadyProcessed);
-      const pendingVerification = Boolean(scanResult?.pendingVerification);
-
-      if (credited) {
-        showToast(t("Éxito"), "success", 1800);
-
-        localStorage.setItem("greenvest_balance_refresh", String(Date.now()));
-        window.dispatchEvent(new Event("greenvest:balance-refresh"));
-
-        setTimeout(() => {
-          navigate(`/home?refresh=${Date.now()}`, { replace: true });
-        }, 900);
-      } else if (pendingVerification || alreadyProcessed) {
-        showToast(t("Éxito"), "success", 1800);
-      } else {
-        showToast(t("Éxito"), "success", 1800);
-      }
-
-      await loadWallet();
+      await navigator.clipboard.writeText(wallet.address);
+      showToast("Copiado");
     } catch (err) {
-      const message = err.message || t("No se pudo registrar la confirmación de recarga.");
-      setError(message);
-      showToast(message, "error", 5200);
+      showToast("No se pudo copiar");
+    }
+  };
+
+  const verify = async () => {
+    setLoading(true);
+    setError("");
+    setMessage("");
+    window.dispatchEvent(new CustomEvent("royal:loading-message", { detail: "Verificando..." }));
+    try {
+      const { data } = await api.post("/deposits/scan-me", { network });
+      setMessage(data.message || "Verificación enviada correctamente.");
+    } catch (err) {
+      setError(err.message);
     } finally {
-      setScanning(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="page recharge-simple-page">
-      {loading && (
-        <div className="garden-loading-overlay app-loading-overlay">
-          <div className="garden-loading-popup app-loading-popup">
-            <span className="garden-loading-spinner" />
-            <strong>{t("Cargando...")}</strong>
-          </div>
-        </div>
-      )}
+    <div className="page-stack recharge-page recharge-page-v22">
       {toast && (
-        <div className={`center-simple-toast center-simple-toast-${toastType}`}>
-          <span>{toast}</span>
+        <div className="recharge-toast-backdrop" aria-live="polite">
+          <div className="recharge-toast-box"><FiCheckCircle /><strong>{toast}</strong></div>
         </div>
       )}
 
-      <div className="recharge-simple-header">
-        <button className="recharge-simple-back" type="button" onClick={handleBack}>
-          <FiArrowLeft />
-        </button>
+      <section className="page-header-card recharge-hero-card compact-recharge-hero">
+        <div>
+          <span className="eyebrow">Recargas</span>
+          <h2>Recarga USDT</h2>
+          <p>Copia tu wallet personal y confirma cuando hayas enviado.</p>
+        </div>
+      </section>
 
-        <h2>{isSelectingNetwork ? t("Método de depósito") : t("Recargar plantas")}</h2>
+      {error && <div className="alert error compact-alert">{error}</div>}
+      {message && <div className="alert success compact-alert">{message}</div>}
 
-        {!isSelectingNetwork ? (
-          <button className="recharge-simple-action" type="button" onClick={handleCopy}>
-            <FiCopy />
+      <section className="recharge-layout compact-recharge-layout">
+        <article className="panel-card recharge-card-main compact-recharge-panel">
+          <div className="section-title compact-section-title">
+            <span>Red</span>
+            <h3>Selecciona una red</h3>
+          </div>
+
+          <div className="recharge-network-select-card">
+            <div className="selected-network-icon" aria-hidden="true">
+              <img src={selectedNetwork.icon} alt="" />
+            </div>
+            <div className="network-select-field">
+              <label htmlFor="deposit-network">Red de depósito</label>
+              <select id="deposit-network" value={network} onChange={(event) => changeNetwork(event.target.value)}>
+                {networks.map((item) => {
+                  const meta = networkInfo(item.code);
+                  return <option key={item.code} value={item.code}>{meta.label}</option>;
+                })}
+              </select>
+              <small>{selectedNetwork.sublabel}</small>
+            </div>
+          </div>
+
+          <div className="compact-wallet-box recharge-wallet-v22">
+            <div className="wallet-title-row">
+              <span>Wallet personal</span>
+              <small>{selectedNetwork.badge}</small>
+            </div>
+            <code className="wallet-full-address" title={wallet?.address || ""}>{wallet?.address || "Cargando wallet..."}</code>
+            <button className="copy-mini-btn wallet-copy-bottom" type="button" onClick={copyAddress} disabled={!wallet?.address}>
+              <FiCopy /> Copiar wallet
+            </button>
+          </div>
+
+          <button className="primary-btn verify-recharge-btn compact-verify-btn" disabled={loading || !wallet?.address} onClick={verify}>
+            <FiRefreshCw className={loading ? "spin-icon" : ""} /> {loading ? "Verificando" : "Verificar recarga"}
           </button>
-        ) : (
-          <span className="recharge-simple-placeholder" />
-        )}
-      </div>
+        </article>
 
-      {isSelectingNetwork ? (
-        <div className="deposit-method-wrap">
-          <div className="deposit-method-note">
-            <span className="deposit-method-note-leaf">🌿</span>
-            <span>{t("Selecciona la red correcta para recargar tus plantas con USDT de forma segura.")}</span>
+        <article className="panel-card qr-card recharge-qr-card compact-qr-panel">
+          <div className="qr-frame compact-qr-frame">
+            {wallet?.address ? <QRCodeCanvas value={wallet.address} size={190} includeMargin /> : <span>Cargando QR...</span>}
           </div>
-
-          <section className="deposit-method-panel">
-            {PAYMENT_NETWORKS.filter((network) => network.enabled).map((network) => (
-              <button
-                key={network.code}
-                type="button"
-                className="deposit-method-row"
-                onClick={() => handleSelectNetwork(network.code)}
-              >
-                <span className="deposit-method-icon">
-                  <img src={network.icon} alt={network.label} />
-                </span>
-
-                <span className="deposit-method-text">
-                  <strong>{network.label}</strong>
-                  <small>{network.description} · USDT</small>
-                </span>
-
-                <FiChevronRight className="deposit-method-chevron" />
-              </button>
-            ))}
-          </section>
-        </div>
-      ) : (
-        <section className="deposit-detail-simple">
-          <div className="deposit-premium-hero">
-            <div className="deposit-premium-logo">
-              <img src="/GreenVest_ico.png" alt="GreenVest" />
-            </div>
-            <div>
-              <span>{t("Recarga tu jardín")}</span>
-              <strong>{t("Depósito USDT")}</strong>
-            </div>
-          </div>
-
-          <div className="deposit-selected-network-simple">
-            <span className="deposit-detail-network-icon">
-              <img src={currentNetwork.icon} alt={currentNetwork.label} />
-            </span>
-            <strong>{currentNetwork.label}</strong>
-          </div>
-
-          {loading ? null : (
-            <>
-              {error && <div className="auth-error recharge-error-inline">{error}</div>}
-
-              <div className="deposit-qr-simple">
-                <QRCodeCanvas
-                  value={address}
-                  size={150}
-                  bgColor="#ffffff"
-                  fgColor="#000000"
-                  level="H"
-                  includeMargin={true}
-                />
-              </div>
-
-              <div className="deposit-address-simple-block">
-                <label>{t("Dirección de depósito")}</label>
-
-                <div className="deposit-address-simple-row">
-                  <span title={address || t("Sin dirección disponible")}>{address || t("Sin dirección disponible")}</span>
-                  <button type="button" onClick={handleCopy} disabled={!address}>
-                    {copied ? t("Copiado") : t("Copiar")}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                className="deposit-confirm-simple-btn"
-                type="button"
-                onClick={handleScan}
-                disabled={scanning || !address}
-              >
-                {scanning ? t("Confirmando...") : t("Confirmar recarga")}
-              </button>
-
-              <div className="deposit-note-simple">
-                <div className="deposit-note-title">
-                  <FiInfo />
-                  <strong>{t("Nota")}</strong>
-                </div>
-
-                <ol>
-                  <li>
-                    {t("Deposita únicamente USDT en la red seleccionada para evitar errores en la recarga.")}
-                  </li>
-                  <li>
-                    {t("Los montos menores a 10 USDT no serán considerados dentro del sistema.")}
-                  </li>
-                  <li>
-                    {t("Si en los próximos 3 a 5 minutos no se refleja el monto depositado, puedes presionar nuevamente Confirmar recarga o contactarte con soporte.")}
-                  </li>
-                  <li>
-                    {t("No realizamos reembolsos por depósitos enviados a redes incorrectas, direcciones equivocadas o activos distintos a USDT.")}
-                  </li>
-                </ol>
-              </div>
-            </>
-          )}
-        </section>
-      )}
+          <p className="recharge-mini-policy">
+            Verifica que la red y la dirección coincidan antes de enviar. Las operaciones realizadas en una red distinta no pueden ser asumidas por Royal Imperial.
+          </p>
+          <p className="recharge-support-note compact-support-note">
+            El abono suele reflejarse en 2 a 5 minutos. Si enviaste correctamente y no aparece, contacta a soporte.
+          </p>
+        </article>
+      </section>
     </div>
   );
 }

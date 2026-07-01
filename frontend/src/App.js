@@ -1,195 +1,37 @@
-import React, { useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-
+import React from "react";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import AppShell from "./components/AppShell";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Home from "./pages/Home";
-import Promotion from "./pages/Promotion";
-import Promociones from "./pages/Promociones";
-import Vip from "./pages/Vip";
+import Tasks from "./pages/Tasks";
+import Levels from "./pages/Levels";
 import InviteFriends from "./pages/InviteFriends";
-import Profile from "./pages/Profile";
-import AppShell from "./components/AppShell";
 import Recharge from "./pages/Recharge";
 import Withdraw from "./pages/Withdraw";
-import Transactions from "./pages/Transactions";
-import AdminWithdrawals from "./pages/AdminWithdrawals";
-import AdminStatus from "./pages/AdminStatus";
-import AdminDeposits from "./pages/AdminDeposits";
-import AdminSecurity from "./pages/AdminSecurity";
-import AdminGrowth from "./pages/AdminGrowth";
-import MembersList from "./pages/MembersList";
-import Tasks from "./pages/Tasks";
-import HashRewards from "./pages/HashRewards";
-import Reinvest from "./pages/Reinvest";
-import About from "./pages/About";
-import AdminPromoEvent from "./pages/AdminPromoEvent";
-import Points from "./pages/Points";
-import AdminFreePlants from "./pages/AdminFreePlants";
-
-import { FaHeadset, FaTelegramPlane } from "react-icons/fa";
-
-import { LanguageProvider } from "./i18n/I18nContext";
-import DomTranslator from "./i18n/DomTranslator";
-
+import History from "./pages/History";
+import Profile from "./pages/Profile";
+import AdminPanel from "./pages/AdminPanel";
+import Support from "./pages/Support";
+import News from "./pages/News";
+import ArticleDetail from "./pages/ArticleDetail";
+import PreLaunch from "./pages/PreLaunch";
+import GlobalLoading from "./components/GlobalLoading";
 import "./App.css";
 
-function isAuthenticated() {
-  return !!localStorage.getItem("token");
-}
-
-const GREENVEST_TELEGRAM_SUPPORT_URL = "https://t.me/GreenVestSoporte";
-const GREENVEST_TELEGRAM_COMMUNITY_URL = "https://t.me/+5k24qwv-a8I4YzRk";
-
-function FloatingWhatsappSupport() {
-  const [isOpen, setIsOpen] = useState(false);
-
-  const openExternal = (url) => {
-    window.open(url, "_blank", "noopener,noreferrer");
-    setIsOpen(false);
-  };
-
-  return (
-    <>
-      <button
-        type="button"
-        className="floating-support-button"
-        onClick={() => setIsOpen(true)}
-        aria-label="Abrir soporte GreenVest"
-        title="Soporte GreenVest"
-      >
-        <FaHeadset />
-        <span>Soporte</span>
-      </button>
-
-      {isOpen && (
-        <div className="floating-support-backdrop" onClick={() => setIsOpen(false)}>
-          <div className="floating-support-sheet" onClick={(event) => event.stopPropagation()}>
-            <button
-              type="button"
-              className="floating-support-close"
-              onClick={() => setIsOpen(false)}
-              aria-label="Cerrar soporte"
-            >
-              ×
-            </button>
-
-            <h2>Soporte</h2>
-            <p>Seleccione un método de contacto</p>
-
-            <button
-              type="button"
-              className="floating-support-option telegram"
-              onClick={() => openExternal(GREENVEST_TELEGRAM_SUPPORT_URL)}
-            >
-              <span><FaTelegramPlane /></span>
-              <strong>Soporte GreenVest</strong>
-              <em>Telegram</em>
-            </button>
-
-            <button
-              type="button"
-              className="floating-support-option telegram"
-              onClick={() => openExternal(GREENVEST_TELEGRAM_COMMUNITY_URL)}
-            >
-              <span><FaTelegramPlane /></span>
-              <strong>Comunidad GreenVest</strong>
-              <em>Telegram</em>
-            </button>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-function ProtectedLayout() {
+function isAuthenticated() { return Boolean(localStorage.getItem("token")); }
+function Protected({ children }) {
   const location = useLocation();
-
-  if (!isAuthenticated()) {
-    return <Navigate to="/login" replace state={{ from: location }} />;
-  }
-
-  return (
-    <AppShell>
-      <FloatingWhatsappSupport />
-      <Routes>
-        <Route path="/home" element={<Home />} />
-        <Route path="/promotion" element={<Promotion />} />
-        <Route path="/promociones" element={<Promociones />} />
-        <Route path="/vip" element={<Vip />} />
-        <Route path="/points" element={<Points />} />
-        <Route path="/invite" element={<InviteFriends />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/recharge" element={<Recharge />} />
-        <Route path="/withdraw" element={<Withdraw />} />
-        <Route path="/transactions" element={<Transactions />} />
-        <Route path="/admin/withdrawals" element={<AdminWithdrawals />} />
-        <Route path="/admin/status" element={<AdminStatus />} />
-        <Route path="/admin/deposits" element={<AdminDeposits />} />
-        <Route path="/admin/promo-event" element={<AdminPromoEvent />} />
-        <Route path="/admin/security" element={<AdminSecurity />} />
-        <Route path="/admin/growth" element={<AdminGrowth />} />
-        <Route path="/admin/free-plants" element={<AdminFreePlants />} />
-        <Route path="/members/:level" element={<MembersList />} />
-        <Route path="/tasks" element={<Tasks />} />
-        <Route path="/promo-event" element={<Navigate to="/home" replace />} />
-        <Route path="/rewards" element={<HashRewards />} />
-        <Route path="/reinvest" element={<Reinvest />} />
-        <Route path="/about" element={<About />} />
-        
-        <Route path="*" element={<Navigate to="/home" replace />} />
-      </Routes>
-    </AppShell>
-  );
-}
-
-function PublicOnly({ children }) {
-  if (isAuthenticated()) {
-    return <Navigate to="/home" replace />;
-  }
-
+  if (!isAuthenticated()) return <Navigate to="/login" replace state={{ from: location }} />;
   return children;
 }
-
-function AppRoutes() {
-  return (
-    <Routes>
-      {/* Primera entrada a la plataforma */}
-      <Route path="/" element={<Navigate to="/register" replace />} />
-
-      {/* Rutas públicas */}
-      <Route
-        path="/login"
-        element={
-          <PublicOnly>
-            <Login />
-          </PublicOnly>
-        }
-      />
-
-      <Route
-        path="/register"
-        element={
-          <PublicOnly>
-            <Register />
-          </PublicOnly>
-        }
-      />
-
-      {/* Rutas protegidas */}
-      <Route path="/*" element={<ProtectedLayout />} />
-    </Routes>
-  );
+function PublicOnly({ children }) {
+  if (isAuthenticated()) return <Navigate to="/home" replace />;
+  return children;
 }
-
+function ProtectedRoutes() {
+  return <Protected><AppShell><Routes><Route path="/home" element={<Home />} /><Route path="/tasks" element={<Tasks />} /><Route path="/levels" element={<Levels />} /><Route path="/vip" element={<Navigate to="/levels" replace />} /><Route path="/invite" element={<InviteFriends />} /><Route path="/recharge" element={<Recharge />} /><Route path="/withdraw" element={<Withdraw />} /><Route path="/history" element={<History />} /><Route path="/transactions" element={<History />} /><Route path="/profile" element={<Profile />} /><Route path="/support" element={<Support />} /><Route path="/news" element={<News />} /><Route path="/prelaunch" element={<PreLaunch />} /><Route path="/news/:slug" element={<ArticleDetail />} /><Route path="/admin" element={<AdminPanel />} /><Route path="/admin/:section" element={<AdminPanel />} /><Route path="*" element={<Navigate to="/home" replace />} /></Routes></AppShell></Protected>;
+}
 export default function App() {
-  return (
-    <LanguageProvider>
-      <BrowserRouter>
-        <DomTranslator />
-        <AppRoutes />
-      </BrowserRouter>
-    </LanguageProvider>
-  );
+  return <><GlobalLoading /><BrowserRouter><Routes><Route path="/" element={<Navigate to={isAuthenticated() ? "/home" : "/register"} replace />} /><Route path="/login" element={<PublicOnly><Login /></PublicOnly>} /><Route path="/register" element={<PublicOnly><Register /></PublicOnly>} /><Route path="/*" element={<ProtectedRoutes />} /></Routes></BrowserRouter></>;
 }

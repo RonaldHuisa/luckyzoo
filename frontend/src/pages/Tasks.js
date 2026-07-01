@@ -1,364 +1,232 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FiRefreshCw } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
-import { completeVipTask, getTasksDashboard } from "../services/authService";
-import { useI18n } from "../i18n/I18nContext";
+import React, { useEffect, useMemo, useState } from "react";
+import { FiAward, FiCheckCircle, FiClock, FiDollarSign, FiRefreshCw, FiTarget, FiZap } from "react-icons/fi";
+import api from "../services/api";
+import MiniChart from "../components/MiniChart";
 
-function formatUsdt(value, decimals = 3) {
-  return Number(value || 0).toLocaleString("en-US", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
+const money = (value) => `${Number(value || 0).toFixed(3)} USDT`;
+
+function useCountdown(target) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  if (!target) return 0;
+  return Math.max(0, Math.ceil((new Date(target).getTime() - now) / 1000));
 }
 
-function formatCountdown(ms) {
-  const safeMs = Math.max(Number(ms || 0), 0);
-  const totalSeconds = Math.floor(safeMs / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return [hours, minutes, seconds].map((item) => String(item).padStart(2, "0")).join(":");
-}
-
-function getRemaining(task, now) {
-  if (!task?.nextAvailableAt) return 0;
-  return Math.max(new Date(task.nextAvailableAt).getTime() - now, 0);
-}
-
-function getProgress(task, now) {
-  if (!task?.nextAvailableAt) return task?.isAvailable ? 100 : 0;
-  const cooldownMs = Number(task.cooldownMinutes || 360) * 60 * 1000;
-  const end = new Date(task.nextAvailableAt).getTime();
-  const start = end - cooldownMs;
-  const elapsed = Math.max(now - start, 0);
-  return Math.min(100, Math.max(0, (elapsed / Math.max(cooldownMs, 1)) * 100));
-}
-
-const GARDEN_WEEK_DAYS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-const TEST_BLOCK_TUESDAY = false;
-
-function getGardenClock(now) {
-  const date = new Date(now);
-  const utcDay = date.getUTCDay();
-  const isWeekend = utcDay === 0;
-  const isTestBlocked = TEST_BLOCK_TUESDAY && utcDay === 2;
-  const blocked = isWeekend || isTestBlocked;
-
-  return {
-    dayName: GARDEN_WEEK_DAYS[utcDay],
-    hour: date.toLocaleTimeString("es-ES", {
-      timeZone: "UTC",
-      hour12: false,
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }),
-    blocked,
-    isWeekend,
-    isTestBlocked,
-  };
-}
-
-const DEFAULT_TREE_IMAGE = "/GreenVest_ico.png";
-
-function getTreeImage(level) {
-  const safeLevel = Number.isFinite(Number(level)) ? Number(level) : 0;
-  return `/tree-icons/tree-${safeLevel}.png`;
-}
-
-function handleTreeImageError(event) {
-  if (event.currentTarget.src.includes(DEFAULT_TREE_IMAGE)) return;
-  event.currentTarget.src = DEFAULT_TREE_IMAGE;
+function formatSeconds(seconds) {
+  const safe = Math.max(0, Number(seconds || 0));
+  const h = Math.floor(safe / 3600);
+  const m = Math.floor((safe % 3600) / 60);
+  const s = safe % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 export default function Tasks() {
-  const navigate = useNavigate();
-  const { t } = useI18n();
-  const popupTimer = useRef(null);
+  const [dashboard, setDashboard] = useState(null);
+  const [selected, setSelected] = useState("");
+  const [toast, setToast] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const remainingSeconds = useCountdown(dashboard?.nextAvailableAt);
+  const resetSeconds = useCountdown(dashboard?.today?.nextResetAt);
 
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [claimingId, setClaimingId] = useState(null);
-  const [activeTab, setActiveTab] = useState("water");
-  const [waterPopup, setWaterPopup] = useState(null);
-  const [now, setNow] = useState(Date.now());
+  const question = dashboard?.currentQuestion;
+  const hasTaskAccess = dashboard?.levelConfig !== null && dashboard?.levelConfig !== undefined;
+  const canAnswer = Boolean(question && !remainingSeconds && !loading && (dashboard?.today?.remaining || 0) > 0);
 
-  const gardenClock = useMemo(() => getGardenClock(now), [now]);
-
-  const loadTasks = useCallback(async () => {
+  const load = async () => {
+    setError("");
     try {
-      setLoading(true);
-      const result = await getTasksDashboard();
-      setData(result);
-    } catch (error) {
-      setWaterPopup({ type: "error", title: t("No se pudo cargar"), description: error.message || t("Error al cargar agua.") });
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
-
-  useEffect(() => {
-    loadTasks();
-  }, [loadTasks]);
-
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    if (!waterPopup) return undefined;
-    if (popupTimer.current) clearTimeout(popupTimer.current);
-    popupTimer.current = setTimeout(() => setWaterPopup(null), 2600);
-    return () => {
-      if (popupTimer.current) clearTimeout(popupTimer.current);
-    };
-  }, [waterPopup]);
-
-  const tasks = data?.tasks || [];
-  const activeTasks = useMemo(() => tasks.filter((task) => task.status !== "expired"), [tasks]);
-  const availableTasks = useMemo(() => activeTasks.filter((task) => task.status === "available"), [activeTasks]);
-  const cooldownTasks = useMemo(() => activeTasks.filter((task) => task.status === "cooldown"), [activeTasks]);
-  const nextTask = availableTasks[0] || cooldownTasks[0] || activeTasks[0];
-
-  const orderedTasks = useMemo(() => {
-    const sortable = [...activeTasks];
-    sortable.sort((a, b) => {
-      const score = (task) => (task.status === "available" ? 0 : task.status === "cooldown" ? 1 : 2);
-      const byState = score(a) - score(b);
-      if (byState !== 0) return byState;
-      return getRemaining(a, now) - getRemaining(b, now);
-    });
-    return sortable;
-  }, [activeTasks, now]);
-
-  useEffect(() => {
-    const shouldRefresh = cooldownTasks.some((task) => getRemaining(task, now) <= 0);
-    if (shouldRefresh) {
-      const timeout = setTimeout(loadTasks, 800);
-      return () => clearTimeout(timeout);
-    }
-    return undefined;
-  }, [now, cooldownTasks, loadTasks]);
-
-  const handleWater = async (task) => {
-    if (gardenClock.blocked && !task?.isFree) {
-      setWaterPopup({
-        type: "error",
-        title: t("Planta en descanso"),
-        description: t("Las plantas de Nivel 1 o más se riegan de lunes a sábado. La Pasantía sí puede regarse todos los días."),
-      });
-      return;
-    }
-
-    if (!task || task.status !== "available" || claimingId) return;
-    try {
-      setClaimingId(task.vipPurchaseId);
-      await completeVipTask(task.vipPurchaseId);
-      setWaterPopup({
-        type: "success",
-        treeName: task.packageName || t("tu planta"),
-        rewardUsdt: Number(task.waterRewardUsdt || 0),
-      });
-      await loadTasks();
-      setActiveTab("history");
-    } catch (error) {
-      setWaterPopup({
-        type: "error",
-        title: t("No se pudo regar"),
-        description: error.message || t("Error al regar árbol."),
-      });
-      await loadTasks();
-    } finally {
-      setClaimingId(null);
+      const { data } = await api.get("/tasks/dashboard");
+      setDashboard(data);
+      setSelected("");
+    } catch (err) {
+      setError(err.message);
     }
   };
 
+  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (dashboard?.nextAvailableAt && remainingSeconds === 0) load();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remainingSeconds]);
+  useEffect(() => {
+    if (dashboard?.today?.nextResetAt && resetSeconds === 0) {
+      const id = setTimeout(load, 1200);
+      return () => clearTimeout(id);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetSeconds, dashboard?.today?.nextResetAt]);
+  useEffect(() => {
+    if (!toast) return undefined;
+    const id = setTimeout(() => setToast(""), 1800);
+    return () => clearTimeout(id);
+  }, [toast]);
+
+  const submit = async () => {
+    if (!selected || !question) return;
+    setLoading(true);
+    setError("");
+    setToast("");
+    try {
+      const { data } = await api.post("/tasks/complete", { questionId: question.id, selectedOption: selected });
+      setToast(data.message || "Tarea registrada correctamente.");
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const accuracy = Number(dashboard?.accuracy?.weeklyPercent || 0).toFixed(0);
+  const rewardPerQuestion = Number(dashboard?.levelConfig?.rewardUsdt || 0);
+  const dailyLimit = Number(dashboard?.today?.limit || 0);
+  const completedToday = Number(dashboard?.today?.completed || 0);
+  const remainingToday = Number(dashboard?.today?.remaining || 0);
+  const earnedToday = Number(dashboard?.today?.rewardUsdt || 0);
+  const dailyPotential = rewardPerQuestion * dailyLimit;
+  const levelName = dashboard?.levelConfig?.name || "Pasantía";
+  const levelNumber = dashboard?.activeLevel ?? 0;
+  const displayQuestionTitle = question?.chartType ? `Escenario ${question?.asset || "MARKET"}` : question?.title;
+
+  const options = useMemo(() => {
+    if (!question) return [];
+    return [
+      ["A", question.optionA],
+      ["B", question.optionB],
+      ["C", question.optionC],
+    ];
+  }, [question]);
+
   return (
-    <div className="page mining-page trees-task-page">
-      {waterPopup && (
-        <div className={`tree-water-result-popup ${waterPopup.type === "error" ? "error" : "success"}`}>
-          <div className="tree-water-result-popup-card">
-            <img className="tree-water-result-popup-icon" src="/watering-active.png" alt="Regadera" />
-            {waterPopup.type === "success" ? (
-              <>
-                <strong>{t("¡Riego completado!")}</strong>
-                <span data-no-translate="true">{t("Obtuviste")} +{formatUsdt(waterPopup.rewardUsdt, 3)} USDT</span>
-                <small>{t("por regar")} <b data-no-translate="true">{waterPopup.treeName}</b></small>
-              </>
-            ) : (
-              <>
-                <strong>{waterPopup.title}</strong>
-                <span>{waterPopup.description}</span>
-              </>
-            )}
+    <div className="page-stack tasks-page-v2">
+      {toast && (
+        <div className="task-toast-backdrop" role="status" aria-live="polite">
+          <div className="task-toast-box">
+            <FiCheckCircle />
+            <strong>{remainingToday <= 0 ? "Tareas completadas" : toast}</strong>
           </div>
         </div>
       )}
-      {loading && (
-        <div className="garden-loading-overlay">
-          <div className="garden-loading-popup">
-            <span className="garden-loading-spinner" />
-            <strong>{t("Cargando...")}</strong>
-          </div>
-        </div>
-      )}
-      <header className="mining-header">
-        <div className="mining-brand">
-          <div className="mining-logo mining-logo-image"><img className="water-ui-icon water-ui-icon-header" src="/water-icon.png" alt="Agua" /></div>
-          <div>
-            <strong>{t("Jardín GreenVest")}</strong>
-            <span>{t("Riega tus plantas cada 6 horas y recoge recompensas")}</span>
-          </div>
-        </div>
-        <button className="mining-small-btn" type="button" onClick={loadTasks}>
-          <FiRefreshCw />
-        </button>
-      </header>
 
-      <section className="mining-main-card tree-water-dashboard">
-        {loading ? null : (
-          <>
-            <div className="tree-water-summary-top tree-water-summary-top-simple">
+      <section className="tasks-v2-hero tasks-impact-hero">
+        <div className="tasks-v2-title">
+          <span className="eyebrow">Tareas IA</span>
+          <h2>Validación financiera</h2>
+          <p>Responde con precisión y contribuye al entrenamiento de nuestra IA financiera.</p>
+        </div>
+        <img className="tasks-impact-hero-brain" src="/ai-brain-banner.webp" alt="" aria-hidden="true" />
+        <div className="tasks-v2-plan">
+          <span>Plan actual</span>
+          <strong>Nivel {levelNumber} · {levelName}</strong>
+          <small>{dailyLimit} tareas disponibles</small>
+        </div>
+        <div className="reset-chip">
+          <FiClock />
+          <span>Reset de preguntas en</span>
+          <strong>{formatSeconds(resetSeconds)}</strong>
+        </div>
+      </section>
+
+      {error && <div className="alert error">{error}</div>}
+
+      <section className="task-layout task-layout-v2">
+        <article className={`task-panel task-current-card ${(dashboard?.today?.remaining || 0) <= 0 ? "task-current-card-done" : ""}`}>
+          {!hasTaskAccess ? (
+            <div className="empty-state">
+              <img src="/royal-icon.svg" alt="Royal Imperial" />
+              <h3>Tareas no disponibles</h3>
+              <p>Contacta soporte si no puedes ver tu nivel de pasantía.</p>
+            </div>
+          ) : (dashboard?.today?.remaining || 0) <= 0 ? (
+            <div className="task-complete-mini">
+              <FiCheckCircle />
               <div>
-                <strong data-no-translate="true">{nextTask?.packageName || t("Sin árboles activos")}</strong>
+                <h3>Tareas completadas</h3>
+                <p>Tu avance de hoy quedó registrado.</p>
               </div>
             </div>
-
-            <div className="tree-water-summary-grid centered compact-top-grid">
-              <div className="tree-summary-metric">
-                <span>{t("Árboles activos")}</span>
-                <strong data-no-translate="true">{activeTasks.length}</strong>
-              </div>
-              <div className="tree-summary-metric ready">
-                <span>{t("Regadera lista")}</span>
-                <strong data-no-translate="true">{availableTasks.length}</strong>
-              </div>
-              <div className="tree-summary-metric tree-summary-balance-highlight">
-                <span>{t("Saldo retirable")}</span>
-                <strong data-no-translate="true">{formatUsdt(data?.withdrawableBalanceUsdt || 0, 2)} USDT</strong>
-              </div>
+          ) : remainingSeconds > 0 ? (
+            <div className="validation-state task-wait-state">
+              <FiClock />
+              <h3>Preparando siguiente tarea</h3>
+              <p>Actualizando tu progreso y dejando lista la próxima validación.</p>
+              <strong>{formatSeconds(remainingSeconds)}</strong>
+              <button className="secondary-btn" type="button" onClick={load}>Actualizar</button>
             </div>
-
-            <button className="mining-primary-btn tree-buy-bottom-btn" type="button" onClick={() => navigate("/vip")}>
-              {t("Comprar árboles")}
-            </button>
-          </>
-        )}
-      </section>
-
-      <section className={`garden-clock-card ${gardenClock.blocked ? "blocked" : "active"}`}>
-        <div>
-          <span>{t("Hora Jardín")}</span>
-          <strong data-no-translate="true">{gardenClock.dayName} · {gardenClock.hour} UTC</strong>
-          {gardenClock.blocked && <small>{t("Pasantía sí se puede regar. Nivel 1 o más de Lunes a Sábado.")}</small>}
-        </div>
-      </section>
-
-      <section className="mining-register-section">
-        <h2>{t("Mis plantas")}</h2>
-        <div className="mining-tabs mining-tabs-two">
-          <button className={activeTab === "water" ? "active" : ""} type="button" onClick={() => setActiveTab("water")}>{t("En curso")}</button>
-          <button className={activeTab === "history" ? "active" : ""} type="button" onClick={() => setActiveTab("history")}>{t("Historial")}</button>
-        </div>
-
-        {activeTab === "water" && (
-          <div className="tree-water-ordered-list">
-            {!loading && orderedTasks.length === 0 && (
-              <div className="mining-empty">
-                {t("No tienes árboles activos. Planta uno para generar agua.")}
+          ) : question ? (
+            <>
+              <div className="task-question-head">
+                <div>
+                  <span>{question.categoryLabel}</span>
+                  <h3>{displayQuestionTitle}</h3>
+                </div>
+                <strong>Tarea {completedToday + 1} de {dailyLimit}</strong>
               </div>
-            )}
+              {question.chartType && <MiniChart type={question.chartType} asset={question.asset} level={levelNumber} />}
+              <div className="task-question-box">
+                <p className="question-text">{question.question}</p>
+              </div>
+              <div className="answer-grid answer-grid-v2">
+                {options.map(([key, value]) => (
+                  <button key={key} type="button" className={selected === key ? "selected" : ""} onClick={() => setSelected(key)}>
+                    <b>{key}</b><span>{value}</span>
+                  </button>
+                ))}
+              </div>
+              <button className="primary-btn full" type="button" disabled={!canAnswer || !selected} onClick={submit}>
+                {loading ? "Registrando..." : "Enviar respuesta"}
+              </button>
+            </>
+          ) : (
+            <div className="empty-state"><FiRefreshCw /><h3>Cargando tarea</h3><button className="secondary-btn" onClick={load}>Actualizar</button></div>
+          )}
+        </article>
 
-            {orderedTasks.map((task) => {
-              const remainingMs = getRemaining(task, now);
-              const isAvailable = task.status === "available" || remainingMs <= 0;
-              const isPaidWeekendBlocked = gardenClock.blocked && !task.isFree;
-              const canWater = isAvailable && !isPaidWeekendBlocked;
-              const progress = getProgress(task, now);
-
-              return (
-                <article key={task.vipPurchaseId} className={`tree-water-ordered-card ${isAvailable ? "available" : ""} ${task.isFree ? "free" : ""}`}>
-                  <div className="tree-water-ordered-left">
-                    <div className="tree-water-ordered-thumb">
-                      <img src={getTreeImage(task.treeLevel)} onError={handleTreeImageError} alt={task.packageName || "GreenVest"} />
-                    </div>
-                    <div className="tree-water-mini-progress tree-water-mini-progress-below-image">
-                      <div className="mining-progress-bar"><span style={{ width: `${progress}%` }} /></div>
-                      <div className="tree-water-percent-row">
-                        <img className="water-ui-icon tree-water-percent-icon" src="/water-percent-icon.png" alt="Agua" />
-                        <strong data-no-translate="true">{progress.toFixed(1)}%</strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="tree-water-ordered-main">
-                    {isPaidWeekendBlocked && isAvailable && (
-                      <div className="tree-water-rest-note">
-                        {t("Nivel 1 o más: disponible de lunes a sábado. Pasantía disponible todos los días.")}
-                      </div>
-                    )}
-                    <div className="tree-water-ordered-head">
-                      <div>
-                        <small>{task.isFree ? t("Nivel gratis") : `${t("Nivel")} ${task.treeLevel}`}</small>
-                        <strong data-no-translate="true">{task.packageName}</strong>
-                        <span data-no-translate="true">{task.waterName}</span>
-                      </div>
-                      <b className={isAvailable ? "tree-ready-pill" : "tree-wait-pill"}>
-                        {isAvailable ? t("Regadera lista") : t("Esperando")}
-                      </b>
-                    </div>
-
-                    <div className="tree-water-ordered-specs">
-                      <div><span>{t("Recompensa")}</span><strong data-no-translate="true">+{formatUsdt(task.waterRewardUsdt, 3)} USDT</strong></div>
-                      <div><span>{t("Producción diaria")}</span><strong data-no-translate="true">{formatUsdt(task.dailyIncomeUsdt, 2)} USDT</strong></div>
-                      <div><span>{t("Vence")}</span><strong data-no-translate="true">{new Date(task.expiresAt).toLocaleDateString()}</strong></div>
-                      <div><span>{t("Contador")}</span><strong>{isAvailable ? t("Pendiente") : formatCountdown(remainingMs)}</strong></div>
-                    </div>
-
-                    <div className="tree-water-ordered-foot">
-                      <button type="button" disabled={!canWater || claimingId === task.vipPurchaseId} onClick={() => handleWater(task)}>
-                        {isAvailable ? <img className="water-ui-icon water-ui-icon-btn tree-water-btn-icon" src="/water-icon.png" alt="Agua" /> : <img className="water-ui-icon water-ui-icon-btn tree-water-btn-icon" src="/water-icon.png" alt="Agua" />}
-                        {isPaidWeekendBlocked && isAvailable
-                          ? t("Disponible lunes a sábado")
-                          : claimingId === task.vipPurchaseId
-                            ? t("Regando...")
-                            : isAvailable
-                              ? t("Regar planta")
-                              : t("Llenando regadera")}
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
+        <aside className="task-side task-side-v2">
+          <div className="panel-card compact-panel task-stat-card">
+            <FiTarget />
+            <span>Precisión semanal</span>
+            <strong>{accuracy}%</strong>
+            <small>{dashboard?.accuracy?.status || "Sin datos"}</small>
           </div>
-        )}
-
-        {activeTab === "history" && (
-          <div className="mining-history-list">
-            {(data?.history || []).length === 0 && <div className="mining-empty">{t("Todavía no tienes plantas regadas.")}</div>}
-            {(data?.history || []).slice(0, 10).map((item) => (
-              <article key={item.id} className="mining-history-item tree-history-water-item">
-                <div className="tree-history-main">
-                  <div className="tree-history-water-icon-wrap">
-                    <img className="tree-history-water-icon" src="/watering-active.png" alt="Regadera" />
-                  </div>
-                  <div className="tree-history-copy">
-                    <strong>{t("Regaste")} <span data-no-translate="true">{item.treeName}</span></strong>
-                    <span data-no-translate="true">{new Date(item.completedAt).toLocaleString()}</span>
-                  </div>
-                </div>
-                <div className="tree-history-reward">
-                  <small>{t("Obtuviste")}</small>
-                  <b data-no-translate="true">+{formatUsdt(item.rewardUsdt, 3)} USDT</b>
-                </div>
-              </article>
-            ))}
+          <div className="panel-card compact-panel task-stat-card">
+            <FiZap />
+            <span>Tareas de hoy</span>
+            <strong>{completedToday}/{dailyLimit}</strong>
+            <small>{remainingToday} pendientes</small>
           </div>
-        )}
+          <div className="panel-card compact-panel task-stat-card">
+            <FiAward />
+            <span>Por pregunta</span>
+            <strong>{money(rewardPerQuestion)}</strong>
+            <small>Al responder.</small>
+          </div>
+          <div className="panel-card compact-panel task-stat-card">
+            <FiDollarSign />
+            <span>Potencial diario</span>
+            <strong>{money(dailyPotential)}</strong>
+            <small>Hoy: {money(earnedToday)}</small>
+          </div>
+        </aside>
       </section>
 
+      <section className="panel-card task-history-card">
+        <div className="section-title"><span>Historial reciente</span><h3>Últimas 15 respuestas</h3></div>
+        <div className="history-list history-list-v2 history-list-compact-v2">
+          {(dashboard?.history || []).length === 0 && <p>No hay tareas completadas todavía.</p>}
+          {(dashboard?.history || []).slice(0, 15).map((item) => (
+            <div key={item.id}>
+              <span>{item.asset} · {item.categoryLabel}</span>
+              <strong>{item.selectedOption} · {item.isCorrect ? "Correcta" : "Registrada"}</strong>
+              <small>{money(item.rewardUsdt)} · {new Date(item.completedAt).toLocaleString()}</small>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
