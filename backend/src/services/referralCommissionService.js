@@ -1,5 +1,3 @@
-const { ensureGreenVestTreeSchema } = require("./greenVestTreeService");
-
 async function getUserSponsorId(client, userId) {
   const result = await client.query(
     `SELECT referred_by_id FROM users WHERE id = $1`,
@@ -123,7 +121,7 @@ async function createSingleReferralCommission({
       "earnings",
       "credit",
       "referral_commission",
-      referralDepth === 1 ? "Comisión directa GreenVest" : `Comisión indirecta Nivel ${referralDepth} GreenVest`,
+      referralDepth === 1 ? "Comisión directa Royal Imperial" : `Comisión indirecta Nivel ${referralDepth} Royal Imperial`,
       commission.amount_usdt,
       `${percent}% sobre ${commissionPlan.name}. Nivel comprador: ${purchasedLevel}. Nivel máximo del receptor: ${sponsorMaxLevel}.`,
       "referral_commission",
@@ -154,14 +152,12 @@ async function createReferralCommissions(
   baseAmountUsdt,
   options = {}
 ) {
-  // GreenVest comisiones:
+  // Royal Imperial comisiones:
   // - Nivel 1/directo: 8%.
   // - Nivel 2 e indirecto Nivel 3: 1% cada uno.
-  // - Nivel 0 / Pasantía no genera comisión.
-  // - Para cobrar, el receptor debe tener al menos una planta VIP comprada.
-  // - Si el referido compra una planta más alta que el receptor,
+  // - Para cobrar, el receptor debe tener al menos un nivel activo o comprado.
+  // - Si el referido compra un nivel superior al receptor,
   //   la comisión se calcula solo hasta el nivel máximo comprado por el receptor.
-  await ensureGreenVestTreeSchema(client);
 
   const purchasedLevel = Number(options.purchasedLevel || 0);
   if (purchasedLevel < 1) return;

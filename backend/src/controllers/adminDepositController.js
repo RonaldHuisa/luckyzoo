@@ -11,6 +11,17 @@ function money(value) {
   return Number(value || 0);
 }
 
+function getLimit(value, fallback = 12, max = 100) {
+  const n = Number(value || fallback);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.min(Math.floor(n), max);
+}
+
+function getPage(value) {
+  const n = Number(value || 1);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
+}
+
 function buildActionState(item) {
   const sweepStatus = item.sweep_status || "pending";
   const hasGasTx = Boolean(item.bnb_topup_tx_hash);
@@ -29,9 +40,20 @@ function buildActionState(item) {
 
 async function listAdminDeposits(req, res) {
   try {
-    const limit = Math.min(Number(req.query.limit || 50), 100);
+    const limit = getLimit(req.query.limit, 12, 100);
+    const page = getPage(req.query.page);
+    const offset = (page - 1) * limit;
 
-    const result = await pool.query(
+    const whereSql = `
+      WHERE d.status = 'confirmed'
+        AND COALESCE(d.sweep_status, '') NOT IN ('manual', 'hidden_manual')
+        AND COALESCE(d.tx_hash, '') NOT LIKE 'manual_admin_recharge_%'
+        AND COALESCE(d.token_contract, '') <> 'manual-admin-credit'
+    `;
+
+    const [countResult, result] = await Promise.all([
+      pool.query(`SELECT COUNT(*)::int AS total FROM deposits d ${whereSql}`),
+      pool.query(
       `
       SELECT
         d.id,
@@ -66,15 +88,13 @@ async function listAdminDeposits(req, res) {
         LIMIT 1
       ) vp ON true
       LEFT JOIN vip_packages pkg ON pkg.id = vp.package_id
-      WHERE d.status = 'confirmed'
-        AND COALESCE(d.sweep_status, '') NOT IN ('manual', 'hidden_manual')
-        AND COALESCE(d.tx_hash, '') NOT LIKE 'manual_admin_recharge_%'
-        AND COALESCE(d.token_contract, '') <> 'manual-admin-credit'
+      ${whereSql}
       ORDER BY d.created_at DESC
-      LIMIT $1
+      LIMIT $1 OFFSET $2
       `,
-      [limit]
-    );
+      [limit, offset]
+    )
+    ]);
 
     const deposits = result.rows.map((item) => {
       let networkInfo = null;
@@ -97,7 +117,7 @@ async function listAdminDeposits(req, res) {
       };
     });
 
-    return res.json({ deposits });
+    return res.json({ deposits, pagination: { page, limit, total: Number(countResult.rows[0]?.total || 0) } });
   } catch (error) {
     console.error("LIST ADMIN DEPOSITS ERROR:", error);
     return res.status(500).json({

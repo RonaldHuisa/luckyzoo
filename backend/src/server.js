@@ -7,30 +7,34 @@ const walletRoutes = require("./routes/walletRoutes");
 const depositRoutes = require("./routes/depositRoutes");
 const withdrawRoutes = require("./routes/withdrawRoutes");
 const adminWithdrawRoutes = require("./routes/adminWithdrawRoutes");
-const adminStatusRoutes = require("./routes/adminStatusRoutes");
 const adminDepositRoutes = require("./routes/adminDepositRoutes");
-const adminSecurityRoutes = require("./routes/adminSecurityRoutes");
-const adminGrowthRoutes = require("./routes/adminGrowthRoutes");
+const adminAnalyticsRoutes = require("./routes/adminAnalyticsRoutes");
+const adminContentRoutes = require("./routes/adminContentRoutes");
+const contentRoutes = require("./routes/contentRoutes");
 const referralRoutes = require("./routes/referralRoutes");
 const vipRoutes = require("./routes/vipRoutes");
 const taskRoutes = require("./routes/taskRoutes");
-const miningRoutes = require("./routes/miningRoutes");
-const hashRewardsRoutes = require("./routes/hashRewardsRoutes");
-const reinvestRoutes = require("./routes/reinvestRoutes");
-const marketRoutes = require("./routes/marketRoutes");
-const alchemyWebhookRoutes = require("./routes/alchemyWebhookRoutes");
-const promoEventRoutes = require("./routes/promoEventRoutes");
-const adminPromoEventRoutes = require("./routes/adminPromoEventRoutes");
-const freePlantPointsRoutes = require("./routes/freePlantPointsRoutes");
-const adminFreePlantPointsRoutes = require("./routes/adminFreePlantPointsRoutes");
+const prelaunchRoutes = require("./routes/prelaunchRoutes");
 const { startAutomaticDepositScanner } = require("./services/depositScannerService");
 const { apiRateLimiter } = require("./middleware/rateLimitMiddleware");
-
 
 const app = express();
 app.set("trust proxy", 1);
 
-const allowedOrigins = [
+function normalizeOrigin(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\/$/, "");
+}
+
+function parseOriginList(value) {
+  return String(value || "")
+    .split(",")
+    .map(normalizeOrigin)
+    .filter(Boolean);
+}
+
+const allowedOrigins = Array.from(new Set([
   "http://localhost:3000",
   "http://localhost:3001",
   "http://localhost:3005",
@@ -39,73 +43,80 @@ const allowedOrigins = [
   "http://127.0.0.1:3001",
   "http://127.0.0.1:3005",
   "http://127.0.0.1:3100",
-  "https://greenvest-platform.onrender.com",
-  "https://greenvest.lat",
-  "https://www.greenvest.lat",
+  "https://royalimperial.lat",
+  "https://www.royalimperial.lat",
+  "https://royalimperial.lat",
+  "https://www.royalimperial.lat",
   process.env.FRONTEND_URL,
-].filter(Boolean);
+  ...parseOriginList(process.env.ALLOWED_ORIGINS),
+].map(normalizeOrigin).filter(Boolean)));
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
+function isRenderPreviewOrigin(origin) {
+  return /^https:\/\/[a-z0-9-]+\.onrender\.com$/i.test(origin || "");
+}
 
-    console.error("CORS bloqueado para origin:", origin);
-    return callback(new Error(`CORS bloqueado para origin: ${origin}`));
+function isAllowedOrigin(origin) {
+  const cleanOrigin = normalizeOrigin(origin);
+  if (!cleanOrigin) return true;
+  if (allowedOrigins.includes(cleanOrigin)) return true;
+  if (process.env.ALLOW_RENDER_PREVIEWS === "true" && isRenderPreviewOrigin(cleanOrigin)) return true;
+  return false;
+}
+
+const corsOptions = {
+  origin(origin, callback) {
+    if (isAllowedOrigin(origin)) return callback(null, true);
+    console.warn(`CORS bloqueado para origin: ${origin}`);
+    return callback(null, false);
   },
   credentials: true,
-}));
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  optionsSuccessStatus: 204,
+};
 
-app.use(express.json({
-  verify: (req, res, buf) => {
-    req.rawBody = buf ? buf.toString("utf8") : "";
-  },
-}));
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 
+app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf ? buf.toString("utf8") : ""; } }));
 app.use("/api", apiRateLimiter);
-
 app.use("/api", (req, res, next) => {
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.set("Pragma", "no-cache");
   res.set("Expires", "0");
-  res.set("Surrogate-Control", "no-store");
   next();
 });
 
-app.get("/", (req, res) => {
-  res.json({
-    message: "Backend GreenVest funcionando correctamente.",
-  });
-});
+app.get("/", (req, res) => res.json({ message: "Backend Royal Imperial AI funcionando correctamente.", version: "1.0.74" }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/deposits", depositRoutes);
 app.use("/api/withdraw", withdrawRoutes);
+app.use("/api", contentRoutes);
+app.use("/api/admin", adminAnalyticsRoutes);
+app.use("/api/admin", adminContentRoutes);
 app.use("/api/admin", adminWithdrawRoutes);
-app.use("/api/admin", adminStatusRoutes);
 app.use("/api/admin", adminDepositRoutes);
-app.use("/api/admin", adminSecurityRoutes);
-app.use("/api/admin", adminGrowthRoutes);
 app.use("/api/referrals", referralRoutes);
 app.use("/api/vip", vipRoutes);
 app.use("/api/tasks", taskRoutes);
-app.use("/api/mining", miningRoutes);
-app.use("/api/hash-rewards", hashRewardsRoutes);
-app.use("/api/reinvest", reinvestRoutes);
-app.use("/api/promo-event", promoEventRoutes);
-app.use("/api/free-plants", freePlantPointsRoutes);
-app.use("/api/admin", adminPromoEventRoutes);
-app.use("/api/admin", adminFreePlantPointsRoutes);
-app.use("/api/market", marketRoutes);
-app.use("/api/webhooks/alchemy", alchemyWebhookRoutes);
+app.use("/api/prelaunch", prelaunchRoutes);
 
-const PORT = process.env.PORT || 4000;
 
+app.use((err, req, res, next) => {
+  console.error("API ERROR:", err);
+  if (res.headersSent) return next(err);
+  return res.status(err.status || 500).json({
+    message: process.env.NODE_ENV === "production"
+      ? "Error interno del servidor."
+      : (err.message || "Error interno del servidor."),
+  });
+});
+
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Backend corriendo en http://localhost:${PORT}`);
+  console.log(`Royal Imperial AI backend corriendo en http://localhost:${PORT}`);
   startAutomaticDepositScanner();
-
-  console.log("Recolección automática deshabilitada por seguridad. Usa /admin/deposits para enviar gas y recolectar manualmente.");
+  console.log("Escaneo automático de recargas activo. Recolección manual desde admin si está configurada.");
 });

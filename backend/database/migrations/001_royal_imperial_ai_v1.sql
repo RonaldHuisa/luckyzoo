@@ -20,8 +20,6 @@ CREATE TABLE IF NOT EXISTS users (
   phone_country_name VARCHAR(80),
   phone_country_code VARCHAR(8),
   phone_number VARCHAR(24),
-  credit_points INTEGER DEFAULT 100 NOT NULL,
-  roulette_points INTEGER DEFAULT 0 NOT NULL,
   withdraw_enabled BOOLEAN DEFAULT FALSE NOT NULL,
   withdraw_enabled_at TIMESTAMP WITHOUT TIME ZONE,
   withdraw_enabled_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -191,37 +189,11 @@ CREATE TABLE IF NOT EXISTS payment_network_scans (
   UNIQUE(wallet_id, network)
 );
 
-
-CREATE TABLE IF NOT EXISTS withdrawal_amount_options (
-  id SERIAL PRIMARY KEY,
-  amount_usdt NUMERIC(38,18) NOT NULL,
-  label VARCHAR(80) NOT NULL,
-  sort_order INTEGER DEFAULT 0 NOT NULL,
-  is_active BOOLEAN DEFAULT TRUE NOT NULL,
-  updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
-  created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX IF NOT EXISTS idx_withdrawal_amount_options_active_order ON withdrawal_amount_options(is_active, sort_order, amount_usdt);
-
-INSERT INTO withdrawal_amount_options(amount_usdt, label, sort_order, is_active)
-SELECT * FROM (VALUES
-  (10::numeric, '10 USDT', 1, true),
-  (30::numeric, '30 USDT', 2, true),
-  (80::numeric, '80 USDT', 3, true),
-  (200::numeric, '200 USDT', 4, true),
-  (500::numeric, '500 USDT', 5, true),
-  (1000::numeric, '1000 USDT', 6, true),
-  (2000::numeric, '2000 USDT', 7, true),
-  (3000::numeric, '3000 USDT', 8, true)
-) AS seed(amount_usdt, label, sort_order, is_active)
-WHERE NOT EXISTS (SELECT 1 FROM withdrawal_amount_options);
-
 CREATE TABLE IF NOT EXISTS withdrawals (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   amount_requested NUMERIC(38,18) NOT NULL,
-  fee_percent NUMERIC(8,4) DEFAULT 10,
+  fee_percent NUMERIC(8,4) DEFAULT 5,
   fee_amount NUMERIC(38,18) DEFAULT 0,
   amount_to_receive NUMERIC(38,18) NOT NULL,
   withdrawal_address TEXT NOT NULL,
@@ -343,90 +315,3 @@ CREATE INDEX IF NOT EXISTS idx_royal_articles_status_order ON royal_articles(sta
 INSERT INTO support_channels(channel_type,label,value,url,description,sort_order,is_active)
 SELECT 'whatsapp','Canal oficial WhatsApp','Royal Imperial AI','https://wa.me/','Canal principal para anuncios y soporte general.',1,true
 WHERE NOT EXISTS (SELECT 1 FROM support_channels);
-
-
-
-ALTER TABLE users
-  ADD COLUMN IF NOT EXISTS credit_points INTEGER DEFAULT 100 NOT NULL;
-
-CREATE TABLE IF NOT EXISTS redeem_codes (
-  id SERIAL PRIMARY KEY,
-  code VARCHAR(40) NOT NULL UNIQUE,
-  balance_type VARCHAR(30) NOT NULL CHECK (balance_type IN ('recharge','withdrawable')),
-  amount_usdt NUMERIC(38,18) NOT NULL CHECK (amount_usdt > 0),
-  max_uses INTEGER NOT NULL DEFAULT 1 CHECK (max_uses > 0),
-  used_count INTEGER NOT NULL DEFAULT 0 CHECK (used_count >= 0),
-  is_active BOOLEAN NOT NULL DEFAULT TRUE,
-  expires_at TIMESTAMP WITHOUT TIME ZONE,
-  note TEXT,
-  created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
-  created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_redeem_codes_active ON redeem_codes(is_active, expires_at);
-CREATE INDEX IF NOT EXISTS idx_redeem_codes_created ON redeem_codes(created_at DESC);
-
-CREATE TABLE IF NOT EXISTS redeem_code_redemptions (
-  id SERIAL PRIMARY KEY,
-  code_id INTEGER NOT NULL REFERENCES redeem_codes(id) ON DELETE CASCADE,
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  balance_type VARCHAR(30) NOT NULL CHECK (balance_type IN ('recharge','withdrawable')),
-  amount_usdt NUMERIC(38,18) NOT NULL CHECK (amount_usdt > 0),
-  created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(code_id, user_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_redeem_redemptions_user ON redeem_code_redemptions(user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_redeem_redemptions_code ON redeem_code_redemptions(code_id, created_at DESC);
-
-
--- Royal Imperial AI v1.0.43
--- Sistema de ruleta con puntos de giro, premios configurables e historial.
-
-ALTER TABLE users
-  ADD COLUMN IF NOT EXISTS roulette_points INTEGER DEFAULT 0 NOT NULL;
-
-CREATE TABLE IF NOT EXISTS roulette_prizes (
-  id SERIAL PRIMARY KEY,
-  label VARCHAR(120) NOT NULL,
-  prize_type VARCHAR(30) NOT NULL DEFAULT 'withdrawable' CHECK (prize_type IN ('withdrawable','recharge','credit_points','none')),
-  amount_usdt NUMERIC(38,18) DEFAULT 0 NOT NULL,
-  credit_points INTEGER DEFAULT 0 NOT NULL,
-  probability_weight NUMERIC(18,6) DEFAULT 1 NOT NULL CHECK (probability_weight >= 0),
-  color_key VARCHAR(30) DEFAULT 'gold' NOT NULL,
-  is_active BOOLEAN DEFAULT TRUE NOT NULL,
-  sort_order INTEGER DEFAULT 0 NOT NULL,
-  created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_roulette_prizes_active_order ON roulette_prizes(is_active, sort_order, id);
-
-CREATE TABLE IF NOT EXISTS roulette_spins (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  prize_id INTEGER REFERENCES roulette_prizes(id) ON DELETE SET NULL,
-  prize_label VARCHAR(120) NOT NULL,
-  prize_type VARCHAR(30) NOT NULL,
-  amount_usdt NUMERIC(38,18) DEFAULT 0 NOT NULL,
-  credit_points INTEGER DEFAULT 0 NOT NULL,
-  status VARCHAR(30) DEFAULT 'completed' NOT NULL,
-  created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  metadata JSONB DEFAULT '{}'::jsonb
-);
-
-CREATE INDEX IF NOT EXISTS idx_roulette_spins_user_created ON roulette_spins(user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_roulette_spins_created ON roulette_spins(created_at DESC);
-
-INSERT INTO roulette_prizes(label,prize_type,amount_usdt,probability_weight,color_key,sort_order,is_active)
-SELECT * FROM (VALUES
-  ('0.5 USDT','withdrawable',0.5::numeric,70::numeric,'green',1,true),
-  ('1 USDT','withdrawable',1::numeric,18::numeric,'blue',2,true),
-  ('5 USDT','withdrawable',5::numeric,7::numeric,'purple',3,true),
-  ('10 USDT','withdrawable',10::numeric,3::numeric,'gold',4,true),
-  ('20 USDT','withdrawable',20::numeric,1.2::numeric,'pink',5,true),
-  ('30 USDT','withdrawable',30::numeric,0.6::numeric,'orange',6,true),
-  ('50 USDT','withdrawable',50::numeric,0.2::numeric,'red',7,true)
-) AS defaults(label,prize_type,amount_usdt,probability_weight,color_key,sort_order,is_active)
-WHERE NOT EXISTS (SELECT 1 FROM roulette_prizes);

@@ -1,9 +1,25 @@
 const pool = require("../config/db");
 const { sendUsdtWithdrawal } = require("../services/withdrawPaymentService");
 
+function getLimit(value, fallback = 12, max = 100) {
+  const n = Number(value || fallback);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.min(Math.floor(n), max);
+}
+
+function getPage(value) {
+  const n = Number(value || 1);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
+}
+
 async function getPendingWithdrawals(req, res) {
     try {
-        const result = await pool.query(
+        const limit = getLimit(req.query.limit, 12, 100);
+        const page = getPage(req.query.page);
+        const offset = (page - 1) * limit;
+        const [countResult, result] = await Promise.all([
+          pool.query(`SELECT COUNT(*)::int AS total FROM withdrawals WHERE status = 'pending'`),
+          pool.query(
             `
       SELECT
         w.id,
@@ -34,11 +50,15 @@ async function getPendingWithdrawals(req, res) {
       INNER JOIN users u ON u.id = w.user_id
       WHERE w.status = 'pending'
       ORDER BY w.created_at ASC
-      `
-        );
+      LIMIT $1 OFFSET $2
+      `,
+          [limit, offset]
+        )
+        ]);
 
         return res.json({
             withdrawals: result.rows,
+            pagination: { page, limit, total: Number(countResult.rows[0]?.total || 0) },
         });
     } catch (error) {
         console.error("GET PENDING WITHDRAWALS ERROR:", error);
@@ -51,7 +71,12 @@ async function getPendingWithdrawals(req, res) {
 
 async function getAllWithdrawals(req, res) {
     try {
-        const result = await pool.query(
+        const limit = getLimit(req.query.limit, 12, 100);
+        const page = getPage(req.query.page);
+        const offset = (page - 1) * limit;
+        const [countResult, result] = await Promise.all([
+          pool.query(`SELECT COUNT(*)::int AS total FROM withdrawals`),
+          pool.query(
             `
       SELECT
         w.id,
@@ -84,12 +109,15 @@ async function getAllWithdrawals(req, res) {
       FROM withdrawals w
       INNER JOIN users u ON u.id = w.user_id
       ORDER BY w.created_at DESC
-      LIMIT 200
-      `
-        );
+      LIMIT $1 OFFSET $2
+      `,
+          [limit, offset]
+        )
+        ]);
 
         return res.json({
             withdrawals: result.rows,
+            pagination: { page, limit, total: Number(countResult.rows[0]?.total || 0) },
         });
     } catch (error) {
         console.error("GET ALL WITHDRAWALS ERROR:", error);
@@ -238,8 +266,73 @@ async function approveWithdrawal(req, res) {
     }
 }
 
+function normalizeAdminWithdrawAmounts(value) {
+    const source = Array.isArray(value) ? value : String(value || "").split(",");
+    const seen = new Set();
+    return source
+        .map((item) => Number(typeof item === "object" ? item.amountUsdt ?? item.amount_usdt ?? item.amount : item))
+        .filter((amount) => Number.isFinite(amount) && amount > 0)
+        .map((amount) => Number(amount.toFixed(6)))
+        .filter((amount) => {
+            if (seen.has(amount)) return false;
+            seen.add(amount);
+            return true;
+        })
+        .slice(0, 12);
+}
+
+async function listWithdrawalAmountOptions(req, res) {
+    try {
+        const result = await pool.query(`
+            SELECT id, amount_usdt, label, sort_order, is_active, created_at, updated_at
+            FROM withdrawal_amount_options
+            ORDER BY sort_order ASC, amount_usdt ASC
+        `);
+        return res.json({ options: result.rows });
+    } catch (error) {
+        console.error("LIST WITHDRAW OPTIONS ERROR:", error);
+        return res.status(500).json({ message: "Error al obtener montos de retiro." });
+    }
+}
+
+async function replaceWithdrawalAmountOptions(req, res) {
+    const adminUserId = req.user.userId;
+    const amounts = normalizeAdminWithdrawAmounts(req.body?.amounts || req.body?.options || req.body?.value);
+
+    if (amounts.length === 0) {
+        return res.status(400).json({ message: "Agrega al menos un monto de retiro válido." });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+        await client.query("DELETE FROM withdrawal_amount_options");
+        for (let i = 0; i < amounts.length; i += 1) {
+            const amount = amounts[i];
+            await client.query(
+                `
+                INSERT INTO withdrawal_amount_options (amount_usdt, label, sort_order, is_active, updated_by)
+                VALUES ($1, $2, $3, true, $4)
+                `,
+                [amount, `${amount} USDT`, i + 1, adminUserId]
+            );
+        }
+        await client.query("COMMIT");
+        const result = await pool.query(`SELECT id, amount_usdt, label, sort_order, is_active FROM withdrawal_amount_options ORDER BY sort_order ASC, amount_usdt ASC`);
+        return res.json({ message: "Montos de retiro actualizados.", options: result.rows });
+    } catch (error) {
+        await client.query("ROLLBACK").catch(() => {});
+        console.error("REPLACE WITHDRAW OPTIONS ERROR:", error);
+        return res.status(500).json({ message: "Error al guardar montos de retiro." });
+    } finally {
+        client.release();
+    }
+}
+
 module.exports = {
     getPendingWithdrawals,
     getAllWithdrawals,
     approveWithdrawal,
+    listWithdrawalAmountOptions,
+    replaceWithdrawalAmountOptions,
 };

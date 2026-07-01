@@ -1,364 +1,234 @@
 const pool = require("../config/db");
-const { ensureGreenVestTreeSchema } = require("../services/greenVestTreeService");
+const { ensureRoyalAiSchema, seedRoyalVipPackages, getLevelConfig, getCooldownLabel } = require("../services/royalAiTaskService");
 
-function getAuthUserId(req) {
-  return req.user.userId || req.user.id;
+function getAuthUserId(req) { return req.user.userId || req.user.id; }
+function toNumber(value) { const n = Number(value || 0); return Number.isFinite(n) ? n : 0; }
+function todayWindowSql() {
+  return `completed_at >= ((date_trunc('day', NOW() AT TIME ZONE 'America/Lima')) AT TIME ZONE 'America/Lima')
+          AND completed_at < (((date_trunc('day', NOW() AT TIME ZONE 'America/Lima')) + INTERVAL '1 day') AT TIME ZONE 'America/Lima')`;
 }
-
-// GreenVest PRD: las plantas de Nivel 1 o más solo se riegan de lunes a sábado.
-// La Pasantía/Nivel 0 sí puede regarse fines de semana con normalidad.
-const PAID_TREE_ALLOWED_DAYS_UTC = [1, 2, 3, 4, 5, 6];
-
-function isPaidTreeWaterBlocked(date = new Date(), level = 0) {
-  const treeLevel = Number(level || 0);
-  if (treeLevel <= 0) return false;
-
-  const utcDay = date.getUTCDay();
-  return !PAID_TREE_ALLOWED_DAYS_UTC.includes(utcDay);
+function nextPeruResetSql() {
+  return `((date_trunc('day', NOW() AT TIME ZONE 'America/Lima') + INTERVAL '1 day') AT TIME ZONE 'America/Lima')`;
 }
-
-function buildCooldownLabel(minutes) {
-  const value = Number(minutes || 0);
-  if (value <= 0) return "Disponible";
-  if (value % 60 === 0) {
-    const hours = value / 60;
-    return `${hours} ${hours === 1 ? "hora" : "horas"}`;
-  }
-  return `${value} minutos`;
+function weekWindowSql() { return `completed_at >= date_trunc('week', NOW()) AND completed_at < date_trunc('week', NOW()) + INTERVAL '7 day'`; }
+function categoryLabel(category) {
+  return ({ trend: "Tendencia", volatility: "Volatilidad", news: "Noticias", signal: "Señal IA", risk: "Riesgo", comparison: "Comparación" })[category] || "Validación IA";
 }
-
-function normalizeTreeTask(row) {
-  const cooldownMinutes = Number(row.task_cooldown_minutes || 360);
-  const rewardUsdt = row.task_reward_usdt || "0";
-  const nextAvailableAt = row.next_available_at || null;
-  const serverNow = row.server_now || null;
-  const status = row.task_status;
-  const level = Number(row.vip_level);
-  const paidTreeWeekendBlocked = isPaidTreeWaterBlocked(serverNow ? new Date(serverNow) : new Date(), level);
-  const wateringAllowedToday = !paidTreeWeekendBlocked;
-
+function normalizeQuestion(row) {
+  if (!row) return null;
   return {
-    id: row.vip_purchase_id,
-    vipPurchaseId: row.vip_purchase_id,
-    treePurchaseId: row.vip_purchase_id,
-    vipLevel: level,
-    treeLevel: level,
-    title: row.package_name || (level === 0 ? "Brote de Pasantía" : `Planta Nivel ${level}`),
-    packageName: row.package_name || (level === 0 ? "Brote de Pasantía" : `Planta Nivel ${level}`),
-    waterName: level === 0 ? "Agua de Brote de Pasantía" : `Agua de ${row.package_name}`,
-    rewardUsdt,
-    taskRewardUsdt: rewardUsdt,
-    waterRewardUsdt: rewardUsdt,
-    dailyIncomeUsdt: row.daily_income_usdt || "0",
-    cooldownMinutes,
-    cooldownLabel: buildCooldownLabel(cooldownMinutes),
-    purchasedAt: row.purchased_at,
-    expiresAt: row.expires_at,
-    lastCompletedAt: row.last_completed_at,
-    nextAvailableAt,
-    serverNow,
-    status,
-    isAvailable: status === "available",
-    wateringAllowedToday,
-    isWeekendBlocked: paidTreeWeekendBlocked,
-    isExpired: status === "expired",
-    isFree: level === 0,
+    id: row.id,
+    levelMin: Number(row.level_min || 1),
+    category: row.category,
+    categoryLabel: categoryLabel(row.category),
+    asset: row.asset,
+    chartType: row.chart_type,
+    title: row.title,
+    question: row.question,
+    optionA: row.option_a,
+    optionB: row.option_b,
+    optionC: row.option_c,
   };
 }
-
-async function expireOldTrees(client, userId) {
-  await client.query(
+async function getActiveLevel(client, userId) {
+  const result = await client.query(
     `
-    UPDATE vip_purchases
-    SET status = 'expired'
-    WHERE user_id = $1
-      AND status = 'active'
-      AND expires_at <= NOW()
+    SELECT MAX(level)::int AS active_level
+    FROM vip_purchases
+    WHERE user_id = $1 AND status = 'active' AND expires_at > NOW() AND level >= 1
     `,
     [userId]
   );
+  return Number(result.rows[0]?.active_level || 0);
 }
-
+async function getAccuracy(client, userId) {
+  const result = await client.query(
+    `SELECT COUNT(*)::int AS total, COALESCE(SUM(CASE WHEN is_correct THEN 1 ELSE 0 END),0)::int AS correct
+     FROM ai_task_responses WHERE user_id = $1 AND ${weekWindowSql()}`,
+    [userId]
+  );
+  const total = Number(result.rows[0]?.total || 0);
+  const correct = Number(result.rows[0]?.correct || 0);
+  const percent = total ? (correct / total) * 100 : 0;
+  let status = "Sin datos suficientes";
+  if (total >= 5) {
+    if (percent >= 90) status = "Analista Royal";
+    else if (percent >= 80) status = "Analista Destacado";
+    else if (percent >= 70) status = "Buen Analista";
+    else if (percent >= 60) status = "Activo";
+    else status = "Participante";
+  }
+  return { total, correct, weeklyPercent: Number(percent.toFixed(2)), status };
+}
+async function getLastResponse(client, userId) {
+  const result = await client.query(
+    `SELECT next_available_at FROM ai_task_responses WHERE user_id = $1 ORDER BY completed_at DESC, id DESC LIMIT 1`,
+    [userId]
+  );
+  return result.rows[0] || null;
+}
+async function getQuestionForLevel(client, userId, level) {
+  const result = await client.query(
+    `
+    SELECT q.*
+    FROM ai_task_questions q
+    WHERE q.is_active = true
+      AND q.level_min <= $1
+      AND q.id NOT IN (
+        SELECT question_id FROM ai_task_responses
+        WHERE user_id = $2 AND ${todayWindowSql()}
+      )
+    ORDER BY q.level_min DESC, RANDOM()
+    LIMIT 1
+    `,
+    [level, userId]
+  );
+  if (result.rows[0]) return normalizeQuestion(result.rows[0]);
+  const fallback = await client.query(
+    `SELECT * FROM ai_task_questions WHERE is_active = true AND level_min <= $1 ORDER BY RANDOM() LIMIT 1`,
+    [level]
+  );
+  return normalizeQuestion(fallback.rows[0]);
+}
 async function getTasksDashboard(req, res) {
   const userId = getAuthUserId(req);
   const client = await pool.connect();
-
   try {
-    await ensureGreenVestTreeSchema(client);
-    await expireOldTrees(client, userId);
-
+    await seedRoyalVipPackages(client);
     const userResult = await client.query(
-      `
-      SELECT
-        id,
-        email,
-        created_at,
-        COALESCE(balance_usdt, 0) AS balance_usdt,
-        COALESCE(withdrawable_usdt, 0) AS withdrawable_usdt
-      FROM users
-      WHERE id = $1
-      `,
+      `SELECT id,email,COALESCE(balance_usdt,0) AS balance_usdt,COALESCE(withdrawable_usdt,0) AS withdrawable_usdt,created_at FROM users WHERE id=$1`,
       [userId]
     );
+    if (!userResult.rows.length) return res.status(404).json({ message: "Usuario no encontrado." });
 
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ message: "Usuario no encontrado." });
-    }
+    const activeLevel = await getActiveLevel(client, userId);
+    const cfg = getLevelConfig(activeLevel);
 
-    const tasksResult = await client.query(
-      `
-      SELECT
-        vp.id AS vip_purchase_id,
-        vp.level AS vip_level,
-        vp.purchased_at,
-        vp.expires_at,
-        vp.status AS purchase_status,
-        p.name AS package_name,
-        COALESCE(p.daily_income_usdt, vp.daily_income_usdt, 0) AS daily_income_usdt,
-        COALESCE(p.task_reward_usdt, vp.daily_income_usdt / 4, 0) AS task_reward_usdt,
-        COALESCE(p.task_cooldown_minutes, 360) AS task_cooldown_minutes,
-        last_task.completed_at AS last_completed_at,
-        CASE
-          WHEN last_task.id IS NULL THEN vp.purchased_at + (COALESCE(p.task_cooldown_minutes, 360)::int * INTERVAL '1 minute')
-          ELSE last_task.period_end
-        END AS next_available_at,
-        NOW() AS server_now,
-        CASE
-          WHEN vp.status <> 'active' OR vp.expires_at <= NOW() THEN 'expired'
-          WHEN last_task.id IS NULL AND (vp.purchased_at + (COALESCE(p.task_cooldown_minutes, 360)::int * INTERVAL '1 minute')) <= NOW() THEN 'available'
-          WHEN last_task.id IS NULL THEN 'cooldown'
-          WHEN last_task.period_end <= NOW() THEN 'available'
-          ELSE 'cooldown'
-        END AS task_status
-      FROM vip_purchases vp
-      JOIN vip_packages p ON p.id = vp.package_id
-      LEFT JOIN LATERAL (
-        SELECT id, completed_at, period_end
-        FROM vip_daily_tasks
-        WHERE vip_purchase_id = vp.id
-          AND user_id = vp.user_id
-          AND status = 'completed'
-        ORDER BY completed_at DESC NULLS LAST, id DESC
-        LIMIT 1
-      ) last_task ON TRUE
-      WHERE vp.user_id = $1
-        AND vp.status = 'active'
-      ORDER BY vp.level ASC, vp.id ASC
-      `,
+    const todayResult = await client.query(
+      `SELECT COUNT(*)::int AS completed, COALESCE(SUM(reward_usdt),0) AS reward FROM ai_task_responses WHERE user_id=$1 AND ${todayWindowSql()}`,
       [userId]
     );
+    const completed = Number(todayResult.rows[0]?.completed || 0);
+    const rewardToday = todayResult.rows[0]?.reward || "0";
+    const limit = cfg ? cfg.dailyTasks : 0;
+    const remaining = Math.max(0, limit - completed);
 
-    const tasks = tasksResult.rows.map(normalizeTreeTask);
-    const activeTasks = tasks.filter((task) => !task.isExpired);
-    const availableTasks = activeTasks.filter((task) => task.status === "available" && task.wateringAllowedToday).length;
-    const cooldownTasks = activeTasks.filter((task) => task.status === "cooldown" || (task.status === "available" && !task.wateringAllowedToday)).length;
-
-    const nearestNextAvailableAt = activeTasks
-      .filter((task) => task.status === "cooldown" && task.nextAvailableAt)
-      .map((task) => new Date(task.nextAvailableAt).getTime())
-      .sort((a, b) => a - b)[0];
+    const last = await getLastResponse(client, userId);
+    const nextAvailableAt = last?.next_available_at && new Date(last.next_available_at) > new Date() ? last.next_available_at : null;
+    const currentQuestion = cfg && remaining > 0 && !nextAvailableAt ? await getQuestionForLevel(client, userId, activeLevel) : null;
+    const accuracy = await getAccuracy(client, userId);
+    const resetResult = await client.query(`SELECT ${nextPeruResetSql()} AS next_reset_at`);
+    const nextResetAt = resetResult.rows[0]?.next_reset_at;
 
     const historyResult = await client.query(
       `
-      SELECT vdt.*, p.name AS package_name
-      FROM vip_daily_tasks vdt
-      LEFT JOIN vip_purchases vp ON vp.id = vdt.vip_purchase_id
-      LEFT JOIN vip_packages p ON p.id = vp.package_id
-      WHERE vdt.user_id = $1
-      ORDER BY vdt.completed_at DESC
-      LIMIT 60
+      SELECT r.id, r.selected_option, r.correct_option, r.is_correct, r.reward_usdt, r.completed_at, q.asset, q.category, q.title
+      FROM ai_task_responses r
+      JOIN ai_task_questions q ON q.id = r.question_id
+      WHERE r.user_id=$1
+      ORDER BY r.completed_at DESC, r.id DESC
+      LIMIT 20
       `,
       [userId]
     );
 
     return res.json({
       user: userResult.rows[0],
-      withdrawableBalanceUsdt: userResult.rows[0].withdrawable_usdt,
       serverNow: new Date().toISOString(),
-      nextResetAt: nearestNextAvailableAt ? new Date(nearestNextAvailableAt).toISOString() : null,
-      totalTasks: activeTasks.length,
-      completedTasks: cooldownTasks,
-      availableTasks,
-      pendingTasks: availableTasks,
-      cooldownTasks,
-      tasks,
-      history: historyResult.rows.map((item) => ({
-        id: item.id,
-        treeName: item.package_name || `Nivel ${item.vip_level}`,
-        treeLevel: item.vip_level,
-        rewardUsdt: item.reward_usdt,
-        completedAt: item.completed_at,
-        nextAvailableAt: item.period_end,
+      activeLevel,
+      levelConfig: cfg ? { ...cfg, cooldownLabel: getCooldownLabel(cfg.cooldownSeconds) } : null,
+      today: { completed, limit, remaining, rewardUsdt: rewardToday, nextResetAt },
+      accuracy,
+      nextAvailableAt,
+      currentQuestion,
+      history: historyResult.rows.map((row) => ({
+        id: row.id,
+        selectedOption: row.selected_option,
+        correctOption: row.correct_option,
+        isCorrect: row.is_correct,
+        rewardUsdt: row.reward_usdt,
+        completedAt: row.completed_at,
+        asset: row.asset,
+        category: row.category,
+        categoryLabel: categoryLabel(row.category),
+        title: row.title,
       })),
     });
   } catch (error) {
-    console.error("GET TREE TASKS DASHBOARD ERROR:", error);
-    return res.status(500).json({
-      message: "Error al cargar agua de árboles.",
-      detail: error.message,
-    });
-  } finally {
-    client.release();
-  }
+    console.error("GET ROYAL AI TASKS ERROR:", error);
+    return res.status(500).json({ message: "Error al cargar tareas IA.", detail: error.message });
+  } finally { client.release(); }
 }
-
 async function completeVipTask(req, res) {
   const userId = getAuthUserId(req);
-  const { vipPurchaseId } = req.params;
-  const client = await pool.connect();
+  const questionId = Number(req.body?.questionId || req.params?.questionId || 0);
+  const selectedOption = String(req.body?.selectedOption || "").trim().toUpperCase();
+  if (!questionId || !["A", "B", "C"].includes(selectedOption)) return res.status(400).json({ message: "Selecciona una opción válida." });
 
+  const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    await ensureGreenVestTreeSchema(client);
-    await expireOldTrees(client, userId);
+    await seedRoyalVipPackages(client);
+    const activeLevel = await getActiveLevel(client, userId);
+    const cfg = getLevelConfig(activeLevel);
+    if (!cfg) { await client.query("ROLLBACK"); return res.status(400).json({ message: "Activa un nivel para completar tareas IA." }); }
 
-    const vipResult = await client.query(
+    const todayCount = await client.query(`SELECT COUNT(*)::int AS total FROM ai_task_responses WHERE user_id=$1 AND ${todayWindowSql()}`, [userId]);
+    if (Number(todayCount.rows[0].total || 0) >= cfg.dailyTasks) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ message: "Ya completaste tus tareas disponibles por hoy." });
+    }
+
+    const last = await getLastResponse(client, userId);
+    if (last?.next_available_at && new Date(last.next_available_at) > new Date()) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ message: "La siguiente tarea todavía está en preparación.", nextAvailableAt: last.next_available_at });
+    }
+
+    const q = await client.query(`SELECT * FROM ai_task_questions WHERE id=$1 AND is_active=true AND level_min <= $2 FOR SHARE`, [questionId, activeLevel]);
+    if (!q.rows.length) { await client.query("ROLLBACK"); return res.status(404).json({ message: "La tarea ya no está disponible." }); }
+    const question = q.rows[0];
+    const correctOption = question.correct_option;
+    const isCorrect = selectedOption === correctOption;
+    const rewardUsdt = cfg.rewardUsdt;
+
+    const responseResult = await client.query(
       `
-      SELECT
-        vp.id,
-        vp.user_id,
-        vp.level,
-        vp.purchased_at,
-        vp.expires_at,
-        vp.status,
-        p.name AS package_name,
-        COALESCE(p.daily_income_usdt, vp.daily_income_usdt, 0) AS daily_income_usdt,
-        COALESCE(p.task_reward_usdt, vp.daily_income_usdt / 4, 0) AS task_reward_usdt,
-        COALESCE(p.task_cooldown_minutes, 360) AS task_cooldown_minutes
-      FROM vip_purchases vp
-      JOIN vip_packages p ON p.id = vp.package_id
-      WHERE vp.id = $1
-        AND vp.user_id = $2
-      FOR UPDATE OF vp
+      INSERT INTO ai_task_responses(user_id, question_id, vip_level, selected_option, correct_option, is_correct, reward_usdt, cooldown_seconds, next_available_at, metadata)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW() + ($8::int * INTERVAL '1 second'),$9::jsonb)
+      RETURNING *
       `,
-      [vipPurchaseId, userId]
+      [userId, question.id, activeLevel, selectedOption, correctOption, isCorrect, rewardUsdt, cfg.cooldownSeconds, JSON.stringify({ model: "base_reward_plus_accuracy", category: question.category, asset: question.asset })]
     );
-
-    if (vipResult.rows.length === 0) {
-      await client.query("ROLLBACK");
-      return res.status(404).json({ message: "Árbol GreenVest no encontrado." });
-    }
-
-    const tree = vipResult.rows[0];
-
-    if (tree.status !== "active" || new Date(tree.expires_at) <= new Date()) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({
-        message: tree.level === 0
-          ? "Tu Pasantía ha finalizado. Planta un árbol superior para seguir generando recompensas."
-          : "Este árbol GreenVest ya no está activo.",
-      });
-    }
-
-    if (isPaidTreeWaterBlocked(new Date(), tree.level)) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({
-        message: "Las plantas de Nivel 1 o más solo pueden regarse de lunes a sábado. La Pasantía sí puede regarse todos los días.",
-      });
-    }
-
-    const lastTaskResult = await client.query(
-      `
-      SELECT id, completed_at, period_end
-      FROM vip_daily_tasks
-      WHERE user_id = $1
-        AND vip_purchase_id = $2
-        AND status = 'completed'
-      ORDER BY completed_at DESC NULLS LAST, id DESC
-      LIMIT 1
-      `,
-      [userId, tree.id]
-    );
-
-    const lastTask = lastTaskResult.rows[0];
-    const nowResult = await client.query(`SELECT NOW() AS now`);
-    const serverNow = new Date(nowResult.rows[0].now);
-    const firstAvailableAt = new Date(new Date(tree.purchased_at).getTime() + Number(tree.task_cooldown_minutes || 360) * 60 * 1000);
-    const nextAvailableAt = lastTask ? new Date(lastTask.period_end) : firstAvailableAt;
-
-    if (nextAvailableAt > serverNow) {
-      await client.query("ROLLBACK");
-      return res.status(409).json({
-        message: "El agua de este árbol todavía está en proceso. Podrás regar cuando termine el contador.",
-        nextAvailableAt: nextAvailableAt.toISOString(),
-      });
-    }
-
-    const taskResult = await client.query(
-      `
-      INSERT INTO vip_daily_tasks
-      (user_id, vip_purchase_id, vip_level, period_start, period_end, reward_usdt, status, completed_at)
-      VALUES
-      ($1, $2, $3, NOW(), NOW() + ($5::int * INTERVAL '1 minute'), $4, 'completed', NOW())
-      RETURNING id, reward_usdt, period_start, period_end, completed_at
-      `,
-      [userId, tree.id, tree.level, tree.task_reward_usdt, tree.task_cooldown_minutes]
-    );
-
-    const task = taskResult.rows[0];
+    const response = responseResult.rows[0];
 
     await client.query(
-      `
-      UPDATE users
-      SET
-        withdrawable_usdt = COALESCE(withdrawable_usdt, 0) + $1,
-        earnings_balance_usdt = COALESCE(earnings_balance_usdt, 0) + $1
-      WHERE id = $2
-      `,
-      [task.reward_usdt, userId]
+      `UPDATE users SET withdrawable_usdt=COALESCE(withdrawable_usdt,0)+$1, earnings_balance_usdt=COALESCE(earnings_balance_usdt,0)+$1 WHERE id=$2`,
+      [rewardUsdt, userId]
     );
-
     await client.query(
       `
-      INSERT INTO account_ledger
-      (user_id, balance_type, direction, type, title, amount_usdt, description, reference_type, reference_id, metadata, status)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11)
-      ON CONFLICT DO NOTHING
+      INSERT INTO account_ledger(user_id,balance_type,direction,type,title,amount_usdt,description,reference_type,reference_id,metadata,status)
+      VALUES ($1,'earnings','credit','ai_task_reward','Recompensa por tarea IA',$2,$3,'ai_task_response',$4,$5::jsonb,'completed')
       `,
-      [
-        userId,
-        "earnings",
-        "credit",
-        "tree_watering",
-        `Riego de ${tree.package_name}`,
-        task.reward_usdt,
-        `Recolectaste agua y regaste ${tree.package_name}. Próxima agua disponible luego de ${tree.task_cooldown_minutes} minutos.`,
-        "vip_daily_task",
-        task.id,
-        JSON.stringify({
-          treePurchaseId: tree.id,
-          treeLevel: tree.level,
-          treeName: tree.package_name,
-          waterRewardUsdt: tree.task_reward_usdt,
-          cooldownMinutes: tree.task_cooldown_minutes,
-          nextAvailableAt: task.period_end,
-        }),
-        "completed",
-      ]
+      [userId, rewardUsdt, `Respuesta registrada en ${question.title}.`, response.id, JSON.stringify({ questionId: question.id, selectedOption, correctOption, isCorrect, activeLevel })]
     );
-
     await client.query("COMMIT");
-
     return res.json({
-      message: `Árbol regado correctamente. Ganaste ${Number(task.reward_usdt).toFixed(3)} USDT.`,
-      rewardUsdt: task.reward_usdt,
-      completedAt: task.completed_at,
-      nextAvailableAt: task.period_end,
-      cooldownMinutes: Number(tree.task_cooldown_minutes),
+      message: "Tarea registrada correctamente.",
+      rewardUsdt,
+      isCorrect,
+      selectedOption,
+      correctOption,
+      completedAt: response.completed_at,
+      nextAvailableAt: response.next_available_at,
+      cooldownSeconds: cfg.cooldownSeconds,
     });
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {});
-    console.error("COMPLETE TREE WATERING ERROR:", error);
-    return res.status(500).json({
-      message: "Error al regar árbol.",
-      detail: error.message,
-    });
-  } finally {
-    client.release();
-  }
+    console.error("COMPLETE ROYAL AI TASK ERROR:", error);
+    return res.status(500).json({ message: "Error al registrar la tarea IA.", detail: error.message });
+  } finally { client.release(); }
 }
 
-module.exports = {
-  getTasksDashboard,
-  completeVipTask,
-};
+module.exports = { getTasksDashboard, completeVipTask };

@@ -43,6 +43,12 @@ async function ensureSecuritySchema(clientOrPool = pool) {
     )
   `);
 
+  await clientOrPool.query(`
+    ALTER TABLE user_security_events
+    ADD COLUMN IF NOT EXISTS created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb
+  `);
+
   await clientOrPool.query(`CREATE INDEX IF NOT EXISTS idx_users_register_ip ON users(register_ip)`);
   await clientOrPool.query(`CREATE INDEX IF NOT EXISTS idx_users_last_login_ip ON users(last_login_ip)`);
   await clientOrPool.query(`CREATE INDEX IF NOT EXISTS idx_users_security_flags ON users(is_suspicious, is_banned)`);
