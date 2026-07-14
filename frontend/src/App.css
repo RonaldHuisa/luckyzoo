@@ -7253,3 +7253,133 @@ body {
   font-weight: 400 !important;
   letter-spacing: 0 !important;
 }
+
+/* === V68 ADMIN: scans, ajustes de saldo y TOP usuarios === */
+.admin-v68 .admin-v55-table th,
+.admin-v68 .admin-v55-table td {
+  vertical-align: top;
+}
+
+.admin-v68-scan-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #7b270c;
+  font-size: 11px;
+  font-weight: 900;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+.admin-v68-scan-link svg {
+  width: 12px;
+  height: 12px;
+}
+
+.admin-v68-wallet-links,
+.admin-v68-balance-stack {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-v68-balance-stack small,
+.admin-v68-wallet-links small {
+  color: #5f3b1c;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.admin-v68-balance-stack b {
+  color: #111;
+  font-weight: 900;
+}
+
+.admin-v68-actions {
+  min-width: 250px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-v68-actions button {
+  min-height: 32px;
+  padding: 0 9px !important;
+  font-size: 12px !important;
+}
+
+.admin-v68-section-note {
+  margin: -4px 0 12px;
+  color: #704523;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-v68-tops-section .admin-v55-section-head {
+  align-items: center;
+}
+
+.admin-v68-filter {
+  grid-template-columns: 180px auto !important;
+}
+
+.admin-v68-filter select {
+  min-height: 38px;
+  border: 1px solid #e2b65d;
+  border-radius: 6px;
+  background: #fffaf0;
+  color: #1f1206;
+  font-weight: 800;
+  padding: 0 10px;
+}
+
+.admin-v68-top-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.admin-v68-top-card {
+  background: #fffaf0;
+  border: 1px solid #d9a94e;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: none;
+  min-width: 0;
+}
+
+.admin-v68-top-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 10px;
+}
+
+.admin-v68-top-title h3 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.1;
+  color: #150a02;
+}
+
+.admin-v68-top-title span {
+  color: #704523;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.admin-v68-table-compact th,
+.admin-v68-table-compact td {
+  font-size: 12px;
+}
+
+@media (max-width: 980px) {
+  .admin-v68-top-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-v68-filter {
+    grid-template-columns: 1fr !important;
+  }
+}
