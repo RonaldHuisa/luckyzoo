@@ -67,9 +67,34 @@ function randomDailyRate(min, max) {
 
 function nextHourLabelFromLimaBlock(blockStartLima) {
   if (!blockStartLima) return "la siguiente hora";
+
+  // hour_block_lima es TIMESTAMP WITHOUT TIME ZONE y ya viene en hora Lima.
+  // No se debe convertir otra vez con timeZone, porque en Render/Node se interpreta como UTC
+  // y terminaba mostrando horas falsas como 1:00 p. m. cuando en Perú tocaba 6:00 p. m.
   const d = new Date(blockStartLima);
-  d.setHours(d.getHours() + 1);
-  return d.toLocaleTimeString("es-PE", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: TIMEZONE });
+  const nextHour24 = (d.getUTCHours() + 1) % 24;
+  const minutes = String(d.getUTCMinutes()).padStart(2, "0");
+  const period = nextHour24 >= 12 ? "p. m." : "a. m.";
+  const hour12 = nextHour24 % 12 || 12;
+
+  return `${hour12}:${minutes} ${period}`;
+}
+
+async function getMinutesUntilNextHourlyBlock(client) {
+  const result = await client.query(`
+    SELECT GREATEST(
+      1,
+      CEIL(
+        EXTRACT(EPOCH FROM (
+          date_trunc('hour', NOW() AT TIME ZONE 'America/Lima')
+          + INTERVAL '1 hour'
+          - (NOW() AT TIME ZONE 'America/Lima')
+        )) / 60
+      )::int
+    ) AS minutes_left
+  `);
+
+  return toInt(result.rows[0]?.minutes_left || 1);
 }
 
 function getRewardIndex(prize) {
@@ -581,7 +606,8 @@ async function spinRouletteBackend(client, { userId, idempotencyKey }) {
   const hasAvailableSpin = registrationBonusRemainingBefore > 0 || baseShotsLeftBefore > 0 || inviteBonusRemainingBefore > 0;
 
   if (!hasAvailableSpin) {
-    const err = new Error(`No tienes tiros disponibles en esta hora. Tu próximo bloque de tiros estará disponible a las ${nextHourLabelFromLimaBlock(hourly.hour_block_lima)}.`);
+    const minutesLeft = await getMinutesUntilNextHourlyBlock(client);
+    const err = new Error(`Nuevos giros en ${minutesLeft} min`);
     err.code = "HOURLY_SPINS_EXHAUSTED";
     throw err;
   }
