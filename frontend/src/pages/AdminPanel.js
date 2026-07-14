@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { FiExternalLink, FiKey, FiMessageCircle, FiPlusCircle, FiRefreshCw, FiSave } from "react-icons/fi";
+import { FiExternalLink, FiInfo, FiKey, FiMessageCircle, FiPlusCircle, FiRefreshCw, FiSave, FiX } from "react-icons/fi";
 import api from "../services/api";
 
 const money = (value) => `${Number(value || 0).toFixed(2)} USDT`;
@@ -167,6 +167,99 @@ function TopList({ option, rows }) {
   );
 }
 
+
+function UserInfoModal({ user, onClose, onAdjustRecharge, onAdjustWithdrawable, onUpdateLimit, onChangePassword, onChangeWallet }) {
+  if (!user) return null;
+
+  const depositWallets = safeWallets(user.deposit_wallets);
+  const missing = Math.max(Number(user.withdraw_required_referrals || 0) - Number(user.direct_referrals || 0), 0);
+
+  return (
+    <div className="admin-v70-modal-backdrop" onClick={onClose}>
+      <section className="admin-v70-modal" onClick={(event) => event.stopPropagation()}>
+        <header className="admin-v70-modal-head">
+          <div>
+            <span>Información del usuario</span>
+            <h2>{user.email}</h2>
+            <p>ID #{user.id} · Código {user.referral_code || "—"} · {vipLabel(user.active_vip_level)}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Cerrar"><FiX /></button>
+        </header>
+
+        <div className="admin-v70-modal-grid">
+          <article>
+            <span>Fecha creación</span>
+            <strong>{formatDate(user.created_at)}</strong>
+          </article>
+          <article>
+            <span>Invitados directos</span>
+            <strong>{Number(user.direct_referrals || 0)}</strong>
+            <small>Límite retiro {Number(user.withdraw_required_referrals || 0)} · {missing > 0 ? `Faltan ${missing}` : "OK"}</small>
+          </article>
+          <article>
+            <span>Saldo garantía</span>
+            <strong>{money(user.balance_usdt)}</strong>
+          </article>
+          <article>
+            <span>Saldo retirable</span>
+            <strong>{money(user.withdrawable_usdt)}</strong>
+          </article>
+          <article>
+            <span>Monedas</span>
+            <strong>{coins(user.roulette_coins)}</strong>
+          </article>
+          <article>
+            <span>Total retirado</span>
+            <strong>{money(user.total_withdrawn)}</strong>
+            <small>{Number(user.withdrawals_count || 0)} retiros</small>
+          </article>
+        </div>
+
+        <div className="admin-v70-detail-block">
+          <h3>Referidor</h3>
+          {user.referred_by_id ? (
+            <p>ID #{user.referred_by_id} · {user.referrer_email || "Sin correo"} · Código {user.referrer_code || "—"}</p>
+          ) : (
+            <p>Sin referidor.</p>
+          )}
+        </div>
+
+        <div className="admin-v70-detail-block">
+          <h3>Wallets de recarga</h3>
+          <div className="admin-v70-wallet-list">
+            {depositWallets.length ? depositWallets.map((wallet, index) => (
+              <ExplorerLink key={`${user.id}-${wallet.network}-${index}`} href={addressUrl(wallet.network, wallet.address)}>
+                {wallet.network}: {shortText(wallet.address, 8, 8)}
+              </ExplorerLink>
+            )) : <span>Sin wallets registradas.</span>}
+          </div>
+        </div>
+
+        <div className="admin-v70-detail-block">
+          <h3>Wallet de retiro</h3>
+          {user.withdrawal_address ? (
+            <div className="admin-v70-wallet-list">
+              <ExplorerLink href={addressUrl(user.withdrawal_network, user.withdrawal_address)}>
+                {user.withdrawal_network || "Red"}: {shortText(user.withdrawal_address, 8, 8)}
+              </ExplorerLink>
+            </div>
+          ) : (
+            <p>Sin wallet de retiro registrada.</p>
+          )}
+        </div>
+
+        <div className="admin-v70-options">
+          <button type="button" onClick={() => onAdjustRecharge(user)}><FiPlusCircle /> Saldo garantía +/-</button>
+          <button type="button" onClick={() => onAdjustWithdrawable(user)}><FiPlusCircle /> Saldo retirable +/-</button>
+          <button type="button" onClick={() => onUpdateLimit(user)}><FiSave /> Límite invitados</button>
+          <button type="button" onClick={() => onChangePassword(user)}><FiKey /> Reset password</button>
+          <button type="button" onClick={() => onChangeWallet(user)}>Cambiar wallet</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function AdminPanel() {
   const [dashboard, setDashboard] = useState(null);
   const [users, setUsers] = useState([]);
@@ -179,6 +272,7 @@ export default function AdminPanel() {
   const [search, setSearch] = useState("");
   const [activeSection, setActiveSection] = useState("usuarios");
   const [message, setMessage] = useState("");
+  const [selectedUser, setSelectedUser] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const kpis = useMemo(() => [
@@ -313,6 +407,43 @@ export default function AdminPanel() {
     }
   };
 
+
+  const adjustBalanceFixed = async (user, balanceType, label) => {
+    const directionRaw = window.prompt(`¿Quieres añadir o quitar ${label}?`, "añadir");
+    if (!directionRaw) return;
+    const direction = normalizeDirection(directionRaw);
+    if (!direction) {
+      showMessage("Operación inválida. Escribe añadir o quitar.");
+      return;
+    }
+
+    const amountRaw = window.prompt(`Cantidad en USDT para ${label}`, "1");
+    if (!amountRaw) return;
+    const amount = Number(amountRaw);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showMessage("Monto inválido.");
+      return;
+    }
+
+    const reason = window.prompt("Motivo del ajuste", `Ajuste manual de ${label}`) || `Ajuste manual de ${label}`;
+
+    try {
+      await api.patch(`/admin/panel/users/${user.id}/balance`, { balanceType, direction, amount, reason });
+      showMessage(direction === "credit" ? `${label} añadido.` : `${label} descontado.`);
+      await Promise.all([
+        searchUsers(),
+        loadTops(topVipFilter),
+        api.get("/admin/panel/dashboard").then((res) => setDashboard(res.data)),
+      ]);
+      setSelectedUser((current) => current?.id === user.id ? { ...current, [balanceType === "recharge" ? "balance_usdt" : "withdrawable_usdt"]: direction === "credit"
+        ? Number(current?.[balanceType === "recharge" ? "balance_usdt" : "withdrawable_usdt"] || 0) + amount
+        : Math.max(0, Number(current?.[balanceType === "recharge" ? "balance_usdt" : "withdrawable_usdt"] || 0) - amount)
+      } : current);
+    } catch (err) {
+      showMessage(err.message || "No se pudo ajustar saldo.");
+    }
+  };
+
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -324,6 +455,16 @@ export default function AdminPanel() {
   return (
     <div className="admin-v55 admin-v68">
       {message && <div className="admin-v55-toast">{message}</div>}
+
+      <UserInfoModal
+        user={selectedUser}
+        onClose={() => setSelectedUser(null)}
+        onAdjustRecharge={(user) => adjustBalanceFixed(user, "recharge", "saldo garantía")}
+        onAdjustWithdrawable={(user) => adjustBalanceFixed(user, "withdrawable", "saldo retirable")}
+        onUpdateLimit={updateLimit}
+        onChangePassword={changePassword}
+        onChangeWallet={changeWallet}
+      />
 
       <header className="admin-v55-head">
         <div>
@@ -361,11 +502,11 @@ export default function AdminPanel() {
       </nav>
 
       {activeSection === "usuarios" && (
-        <section className="admin-v55-section">
-          <div className="admin-v55-section-head">
+        <section className="admin-v55-section admin-v70-users-section">
+          <div className="admin-v55-section-head admin-v70-users-head">
             <div>
               <h2>Usuarios</h2>
-              <p>Revisa fecha de creación, referidos, saldos, wallets, scans y ajustes.</p>
+              <p>Vista compacta. Abre más info para ver wallets, saldos, referidor y opciones.</p>
             </div>
             <div className="admin-v55-search">
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar email, código o ID" />
@@ -373,85 +514,28 @@ export default function AdminPanel() {
             </div>
           </div>
 
-          <div className="admin-v55-table-wrap">
-            <table className="admin-v55-table admin-v68-users-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Usuario</th>
-                  <th>Creado</th>
-                  <th>VIP</th>
-                  <th>Referidor</th>
-                  <th>Invitados</th>
-                  <th>Saldos</th>
-                  <th>Inversión / retiro</th>
-                  <th>Wallet recarga</th>
-                  <th>Wallet retiro</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => {
-                  const missing = Math.max(Number(user.withdraw_required_referrals || 0) - Number(user.direct_referrals || 0), 0);
-                  const depositWallets = safeWallets(user.deposit_wallets);
-                  return (
-                    <tr key={user.id}>
-                      <td>#{user.id}</td>
-                      <td>
-                        <strong>{user.email}</strong>
-                        <small>{user.is_admin ? "Admin" : "Usuario"} · Código {user.referral_code || "—"}</small>
-                      </td>
-                      <td>{formatDate(user.created_at)}</td>
-                      <td>{vipLabel(user.active_vip_level)}</td>
-                      <td>
-                        <strong>{user.referrer_email || "—"}</strong>
-                        <small>{user.referrer_code || ""}</small>
-                      </td>
-                      <td>
-                        <strong>{user.direct_referrals || 0}</strong>
-                        <small>Límite retiro {user.withdraw_required_referrals || 0} · {missing > 0 ? `Faltan ${missing}` : "OK"}</small>
-                      </td>
-                      <td>
-                        <div className="admin-v68-balance-stack">
-                          <small>Recarga: <b>{money(user.balance_usdt)}</b></small>
-                          <small>Retirable: <b>{money(user.withdrawable_usdt)}</b></small>
-                          <small>Monedas: <b>{coins(user.roulette_coins)}</b></small>
-                        </div>
-                      </td>
-                      <td>
-                        <strong>{money(user.total_invested)}</strong>
-                        <small>Retirado {money(user.total_withdrawn)} · {user.withdrawals_count || 0} retiros</small>
-                        <small>Recargado {money(user.total_recharged)}</small>
-                      </td>
-                      <td>
-                        <div className="admin-v68-wallet-links">
-                          {depositWallets.length ? depositWallets.map((wallet, index) => (
-                            <ExplorerLink key={`${user.id}-${wallet.network}-${index}`} href={addressUrl(wallet.network, wallet.address)}>
-                              {wallet.network}: {shortText(wallet.address, 6, 6)}
-                            </ExplorerLink>
-                          )) : <span>—</span>}
-                        </div>
-                      </td>
-                      <td>
-                        <strong>{user.withdrawal_network || "—"}</strong>
-                        <small>{shortText(user.withdrawal_address)}</small>
-                        {user.withdrawal_address ? (
-                          <ExplorerLink href={addressUrl(user.withdrawal_network, user.withdrawal_address)}>Ver scan</ExplorerLink>
-                        ) : null}
-                      </td>
-                      <td>
-                        <div className="admin-v55-actions admin-v68-actions">
-                          <button onClick={() => adjustBalance(user)}><FiPlusCircle /> Saldo +/-</button>
-                          <button onClick={() => updateLimit(user)}><FiSave /> Límite</button>
-                          <button onClick={() => changePassword(user)}><FiKey /> Password</button>
-                          <button onClick={() => changeWallet(user)}>Wallet</button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="admin-v70-user-list">
+            {users.map((user) => (
+              <article key={user.id} className="admin-v70-user-card">
+                <div className="admin-v70-user-id">#{user.id}</div>
+                <div className="admin-v70-user-main">
+                  <strong>{user.email}</strong>
+                  <span>{user.is_admin ? "Admin" : "Usuario"} · Código {user.referral_code || "—"}</span>
+                </div>
+                <div className="admin-v70-user-vip">{vipLabel(user.active_vip_level)}</div>
+                <div className="admin-v70-user-invited">
+                  <strong>{Number(user.direct_referrals || 0)}</strong>
+                  <span>Invitados</span>
+                </div>
+                <button type="button" className="admin-v70-more-btn" onClick={() => setSelectedUser(user)}>
+                  <FiInfo /> Más info
+                </button>
+              </article>
+            ))}
+
+            {!users.length && (
+              <p className="admin-v70-empty">No hay usuarios para mostrar.</p>
+            )}
           </div>
         </section>
       )}
