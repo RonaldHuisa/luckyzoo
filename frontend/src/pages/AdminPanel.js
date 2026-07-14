@@ -97,40 +97,71 @@ function ExplorerLink({ href, children }) {
   );
 }
 
-function TopTable({ title, subtitle, rows, valueRender }) {
+const TOP_OPTIONS = {
+  topCoins: {
+    key: "topCoins",
+    label: "Más monedas ganadas",
+    helper: "Ordenado por monedas actuales",
+    valueLabel: "Monedas",
+    valueRender: (user) => coins(user.roulette_coins),
+    metaRender: (user) => `${money(user.withdrawable_usdt)} retirable · ${Number(user.direct_referrals || 0)} invitados`,
+  },
+  topWithdrawable: {
+    key: "topWithdrawable",
+    label: "Mayor saldo retirable",
+    helper: "Usuarios con más saldo disponible para retiro",
+    valueLabel: "Saldo retirable",
+    valueRender: (user) => money(user.withdrawable_usdt),
+    metaRender: (user) => `${coins(user.roulette_coins)} · ${Number(user.withdrawals_count || 0)} retiros`,
+  },
+  topWithdrawals: {
+    key: "topWithdrawals",
+    label: "Más USDT retirado",
+    helper: "Ordenado por total retirado en USDT",
+    valueLabel: "Total retirado",
+    valueRender: (user) => money(user.total_withdrawn),
+    metaRender: (user) => `${Number(user.withdrawals_count || 0)} solicitud(es) de retiro`,
+  },
+  topReferrals: {
+    key: "topReferrals",
+    label: "Mayor cantidad de invitados",
+    helper: "Ordenado por referidos directos",
+    valueLabel: "Invitados",
+    valueRender: (user) => `${Number(user.direct_referrals || 0)} invitados`,
+    metaRender: (user) => `${coins(user.roulette_coins)} · ${money(user.withdrawable_usdt)} retirable`,
+  },
+};
+
+function TopList({ option, rows }) {
   return (
-    <section className="admin-v68-top-card">
-      <div className="admin-v68-top-title">
-        <h3>{title}</h3>
-        <span>{subtitle}</span>
+    <section className="admin-v69-top-list-card">
+      <div className="admin-v69-top-list-head">
+        <div>
+          <h3>{option.label}</h3>
+          <span>{option.helper}</span>
+        </div>
+        <strong>{option.valueLabel}</strong>
       </div>
-      <div className="admin-v55-table-wrap">
-        <table className="admin-v55-table admin-v68-table-compact">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Usuario</th>
-              <th>VIP</th>
-              <th>Valor</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(rows || []).map((user, index) => (
-              <tr key={`${title}-${user.id}`}>
-                <td>{index + 1}</td>
-                <td>
-                  <strong>{user.email}</strong>
-                  <small>ID #{user.id} · Código {user.referral_code || "—"}</small>
-                </td>
-                <td>{vipLabel(user.active_vip_level)}</td>
-                <td>{valueRender(user)}</td>
-              </tr>
-            ))}
-            {!(rows || []).length && (
-              <tr><td colSpan="4">Sin datos.</td></tr>
-            )}
-          </tbody>
-        </table>
+
+      <div className="admin-v69-top-list">
+        {(rows || []).map((user, index) => (
+          <article key={`${option.key}-${user.id}`} className="admin-v69-top-row">
+            <div className="admin-v69-rank">#{index + 1}</div>
+            <div className="admin-v69-user">
+              <strong>{user.email}</strong>
+              <span>ID #{user.id} · Código {user.referral_code || "—"}</span>
+            </div>
+            <div className="admin-v69-vip">{vipLabel(user.active_vip_level)}</div>
+            <div className="admin-v69-value">
+              <strong>{option.valueRender(user)}</strong>
+              <span>{option.metaRender(user)}</span>
+            </div>
+          </article>
+        ))}
+
+        {!(rows || []).length && (
+          <p className="admin-v69-empty">Sin datos para este filtro.</p>
+        )}
       </div>
     </section>
   );
@@ -144,6 +175,7 @@ export default function AdminPanel() {
   const [recharges, setRecharges] = useState({ normalRecharges: [], adminRecharges: [] });
   const [topUsers, setTopUsers] = useState({ topCoins: [], topWithdrawable: [], topWithdrawals: [], topReferrals: [] });
   const [topVipFilter, setTopVipFilter] = useState("all");
+  const [topMetricFilter, setTopMetricFilter] = useState("topCoins");
   const [search, setSearch] = useState("");
   const [activeSection, setActiveSection] = useState("usuarios");
   const [message, setMessage] = useState("");
@@ -285,6 +317,9 @@ export default function AdminPanel() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const selectedTopOption = TOP_OPTIONS[topMetricFilter] || TOP_OPTIONS.topCoins;
+  const selectedTopRows = topUsers[selectedTopOption.key] || [];
 
   return (
     <div className="admin-v55 admin-v68">
@@ -562,63 +597,53 @@ export default function AdminPanel() {
       )}
 
       {activeSection === "tops" && (
-        <section className="admin-v55-section admin-v68-tops-section">
-          <div className="admin-v55-section-head">
+        <section className="admin-v55-section admin-v68-tops-section admin-v69-tops-section">
+          <div className="admin-v69-top-header">
             <div>
               <h2>TOP usuarios</h2>
-              <p>Filtra por VIP y revisa monedas, saldo retirable, retiros e invitados.</p>
+              <p>Elige el ranking y luego filtra por VIP. Todo se muestra en una sola lista compacta.</p>
             </div>
-            <div className="admin-v55-search admin-v68-filter">
-              <select
-                value={topVipFilter}
-                onChange={async (e) => {
-                  const value = e.target.value;
-                  setTopVipFilter(value);
-                  try {
-                    await loadTops(value);
-                  } catch (err) {
-                    showMessage(err.message || "No se pudo filtrar TOP.");
-                  }
-                }}
-              >
-                <option value="all">Todos los VIP</option>
-                <option value="0">Gratis / Pasantía</option>
-                <option value="1">VIP 1</option>
-                <option value="2">VIP 2</option>
-                <option value="3">VIP 3</option>
-                <option value="4">VIP 4</option>
-                <option value="5">VIP 5</option>
-              </select>
-              <button onClick={() => loadTops(topVipFilter)}>Actualizar TOP</button>
+
+            <div className="admin-v69-top-controls">
+              <label>
+                <span>Ranking</span>
+                <select value={topMetricFilter} onChange={(e) => setTopMetricFilter(e.target.value)}>
+                  <option value="topCoins">Más monedas ganadas</option>
+                  <option value="topWithdrawable">Mayor saldo retirable</option>
+                  <option value="topWithdrawals">Más USDT retirado</option>
+                  <option value="topReferrals">Mayor cantidad de invitados</option>
+                </select>
+              </label>
+
+              <label>
+                <span>VIP</span>
+                <select
+                  value={topVipFilter}
+                  onChange={async (e) => {
+                    const value = e.target.value;
+                    setTopVipFilter(value);
+                    try {
+                      await loadTops(value);
+                    } catch (err) {
+                      showMessage(err.message || "No se pudo filtrar TOP.");
+                    }
+                  }}
+                >
+                  <option value="all">Todos los VIP</option>
+                  <option value="0">Gratis / Pasantía</option>
+                  <option value="1">VIP 1</option>
+                  <option value="2">VIP 2</option>
+                  <option value="3">VIP 3</option>
+                  <option value="4">VIP 4</option>
+                  <option value="5">VIP 5</option>
+                </select>
+              </label>
+
+              <button onClick={() => loadTops(topVipFilter)}>Actualizar</button>
             </div>
           </div>
 
-          <div className="admin-v68-top-grid">
-            <TopTable
-              title="Más monedas ganadas"
-              subtitle="Ordenado por monedas actuales"
-              rows={topUsers.topCoins}
-              valueRender={(user) => coins(user.roulette_coins)}
-            />
-            <TopTable
-              title="Mayor saldo retirable"
-              subtitle="Usuarios con más USDT retirable"
-              rows={topUsers.topWithdrawable}
-              valueRender={(user) => money(user.withdrawable_usdt)}
-            />
-            <TopTable
-              title="Más retiros realizados"
-              subtitle="Cantidad de solicitudes de retiro"
-              rows={topUsers.topWithdrawals}
-              valueRender={(user) => `${Number(user.withdrawals_count || 0)} retiros · ${money(user.total_withdrawn)}`}
-            />
-            <TopTable
-              title="Mayor cantidad de invitados"
-              subtitle="Referidos directos"
-              rows={topUsers.topReferrals}
-              valueRender={(user) => `${Number(user.direct_referrals || 0)} invitados`}
-            />
-          </div>
+          <TopList option={selectedTopOption} rows={selectedTopRows} />
         </section>
       )}
     </div>
