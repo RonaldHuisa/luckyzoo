@@ -1,2 +1,0 @@
--- No se requiere SQL nuevo para cambiar contraseña.
--- La ruta actualiza users.password_hash, columna que ya existe.
