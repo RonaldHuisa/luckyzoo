@@ -222,6 +222,8 @@ async function ensureRouletteSchema(client) {
 
   await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS registration_bonus_spins_remaining INTEGER DEFAULT 0 NOT NULL`);
   await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS registration_bonus_spins_granted INTEGER DEFAULT 0 NOT NULL`);
+  await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS invite_bonus_spins_remaining INTEGER DEFAULT 0 NOT NULL`);
+  await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS invite_bonus_spins_total INTEGER DEFAULT 0 NOT NULL`);
 
   const prizeCount = await client.query(`SELECT COUNT(*)::int AS total FROM roulette_prizes`);
   if (Number(prizeCount.rows[0]?.total || 0) === 0) {
@@ -390,17 +392,27 @@ async function getOrCreateHourlyUsage(client, userId, context) {
   const { hour_block_lima } = await getPlatformToday(client);
   await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS registration_bonus_spins_remaining INTEGER DEFAULT 0 NOT NULL`);
   await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS registration_bonus_spins_granted INTEGER DEFAULT 0 NOT NULL`);
+  await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS invite_bonus_spins_remaining INTEGER DEFAULT 0 NOT NULL`);
+  await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS invite_bonus_spins_total INTEGER DEFAULT 0 NOT NULL`);
 
   const bonusResult = await client.query(
-    `SELECT COALESCE(registration_bonus_spins_remaining,0)::int AS bonus_remaining
+    `SELECT
+       COALESCE(registration_bonus_spins_remaining,0)::int AS registration_bonus_remaining,
+       COALESCE(invite_bonus_spins_remaining,0)::int AS invite_bonus_remaining
      FROM users
      WHERE id=$1`,
     [userId]
   );
 
-  const bonusRemaining = toInt(bonusResult.rows[0]?.bonus_remaining);
+  const registrationBonusRemaining = toInt(bonusResult.rows[0]?.registration_bonus_remaining);
+  const inviteBonusRemaining = toInt(bonusResult.rows[0]?.invite_bonus_remaining);
   const baseShots = toInt(context.config.shotsPerHour || 1);
-  const desiredAllowed = bonusRemaining > 0 ? bonusRemaining : baseShots;
+
+  // Los 15 tiros de registro se muestran como 15/1.
+  // Los giros de invitación se acumulan aparte y se suman a la base por hora: 3/1, 7/5, etc.
+  const desiredAllowed = registrationBonusRemaining > 0
+    ? registrationBonusRemaining
+    : baseShots + inviteBonusRemaining;
 
   await client.query(
     `INSERT INTO roulette_hourly_usage(user_id,hour_block_lima,vip_level,shots_allowed,shots_used)
@@ -408,15 +420,9 @@ async function getOrCreateHourlyUsage(client, userId, context) {
      ON CONFLICT (user_id,hour_block_lima)
      DO UPDATE SET
        vip_level=EXCLUDED.vip_level,
-       shots_allowed=GREATEST(
-         roulette_hourly_usage.shots_used,
-         CASE
-           WHEN $5::int > 0 THEN roulette_hourly_usage.shots_used + $5::int
-           ELSE $4::int
-         END
-       ),
+       shots_allowed=GREATEST(roulette_hourly_usage.shots_used, EXCLUDED.shots_allowed),
        updated_at=NOW()`,
-    [userId, hour_block_lima, context.level, desiredAllowed, bonusRemaining]
+    [userId, hour_block_lima, context.level, desiredAllowed]
   );
 
   const result = await client.query(`SELECT * FROM roulette_hourly_usage WHERE user_id=$1 AND hour_block_lima=$2 FOR UPDATE`, [userId, hour_block_lima]);
@@ -520,7 +526,7 @@ async function buildRouletteStatus(client, userId) {
   const daily = await getOrCreateDailyState(client, userId, context);
   const hourly = await getOrCreateHourlyUsage(client, userId, context);
 
-  const userResult = await client.query(`SELECT id, COALESCE(roulette_coins,0) AS roulette_coins, COALESCE(withdrawable_usdt,0) AS withdrawable_usdt FROM users WHERE id=$1`, [userId]);
+  const userResult = await client.query(`SELECT id, COALESCE(roulette_coins,0) AS roulette_coins, COALESCE(withdrawable_usdt,0) AS withdrawable_usdt, COALESCE(registration_bonus_spins_remaining,0)::int AS registration_bonus_spins_remaining, COALESCE(invite_bonus_spins_remaining,0)::int AS invite_bonus_spins_remaining, COALESCE(invite_bonus_spins_total,0)::int AS invite_bonus_spins_total FROM users WHERE id=$1`, [userId]);
   const history = await client.query(`SELECT * FROM roulette_spins WHERE user_id=$1 ORDER BY created_at DESC LIMIT 20`, [userId]);
   const exchanges = await client.query(`SELECT * FROM roulette_coin_exchanges WHERE user_id=$1 ORDER BY created_at DESC LIMIT 10`, [userId]);
   const user = userResult.rows[0] || {};
@@ -546,6 +552,10 @@ async function buildRouletteStatus(client, userId) {
       left: Math.max(0, toInt(hourly.shots_allowed) - toInt(hourly.shots_used)),
       hourBlockLima: hourly.hour_block_lima,
       nextBlockLabel: nextHourLabelFromLimaBlock(hourly.hour_block_lima),
+      baseHourly: toInt(context.config.shotsPerHour || 1),
+      registrationBonusRemaining: toInt(user.registration_bonus_spins_remaining),
+      inviteBonusRemaining: toInt(user.invite_bonus_spins_remaining),
+      inviteBonusTotal: toInt(user.invite_bonus_spins_total),
     },
     daily: {
       date: daily.daily_reward_date,
@@ -601,12 +611,36 @@ async function spinRouletteBackend(client, { userId, idempotencyKey }) {
   const rewardIndex = getRewardIndex(prize);
 
   await client.query(`UPDATE roulette_hourly_usage SET shots_used=shots_used+1, updated_at=NOW() WHERE id=$1`, [hourly.id]);
-  await client.query(
-    `UPDATE users
-     SET registration_bonus_spins_remaining=GREATEST(COALESCE(registration_bonus_spins_remaining,0)-1,0)
-     WHERE id=$1 AND COALESCE(registration_bonus_spins_remaining,0) > 0`,
+
+  const bonusState = await client.query(
+    `SELECT
+       COALESCE(registration_bonus_spins_remaining,0)::int AS registration_bonus_remaining,
+       COALESCE(invite_bonus_spins_remaining,0)::int AS invite_bonus_remaining
+     FROM users
+     WHERE id=$1
+     FOR UPDATE`,
     [userId]
   );
+  const registrationBonusRemaining = toInt(bonusState.rows[0]?.registration_bonus_remaining);
+  const inviteBonusRemaining = toInt(bonusState.rows[0]?.invite_bonus_remaining);
+  const baseShots = toInt(context.config.shotsPerHour || 1);
+  const usedBeforeSpin = toInt(hourly.shots_used);
+
+  if (registrationBonusRemaining > 0) {
+    await client.query(
+      `UPDATE users
+       SET registration_bonus_spins_remaining=GREATEST(COALESCE(registration_bonus_spins_remaining,0)-1,0)
+       WHERE id=$1`,
+      [userId]
+    );
+  } else if (inviteBonusRemaining > 0 && usedBeforeSpin >= baseShots) {
+    await client.query(
+      `UPDATE users
+       SET invite_bonus_spins_remaining=GREATEST(COALESCE(invite_bonus_spins_remaining,0)-1,0)
+       WHERE id=$1`,
+      [userId]
+    );
+  }
 
   await client.query(`UPDATE roulette_user_daily_state SET daily_earned_coins=daily_earned_coins+$1, spins_used_today=spins_used_today+1, updated_at=NOW() WHERE id=$2`, [prize, daily.id]);
   await client.query(`UPDATE users SET roulette_coins=COALESCE(roulette_coins,0)+$1, daily_reward_date=$3, daily_rate=$4, daily_target_coins=$5, daily_earned_coins=$6, spins_used_today=COALESCE(spins_used_today,0)+1, last_daily_reset_at=$7 WHERE id=$2`, [prize, userId, daily.daily_reward_date, daily.daily_rate, daily.daily_target_coins, after, daily.last_daily_reset_at]);

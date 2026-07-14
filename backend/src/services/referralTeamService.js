@@ -1,6 +1,7 @@
 const { COINS_PER_USDT, getVipLevelConfig, ensureRouletteSchema } = require("./rouletteService");
 
 const INVITE_BONUS_COINS = 200;
+const INVITE_BONUS_SPINS = 2;
 
 async function ensureReferralTeamSchema(client) {
   await ensureRouletteSchema(client);
@@ -17,6 +18,11 @@ async function ensureReferralTeamSchema(client) {
     )
   `);
   await client.query(`CREATE INDEX IF NOT EXISTS idx_referral_invite_bonuses_sponsor ON referral_invite_bonuses(sponsor_user_id, created_at DESC)`);
+
+  await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS invite_bonus_spins_remaining INTEGER DEFAULT 0 NOT NULL`);
+  await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS invite_bonus_spins_total INTEGER DEFAULT 0 NOT NULL`);
+  await client.query(`ALTER TABLE referral_invite_bonuses ADD COLUMN IF NOT EXISTS spin_bonus_amount INTEGER DEFAULT 2 NOT NULL`);
+
 
   await client.query(`
     CREATE TABLE IF NOT EXISTS referral_withdrawal_commissions (
@@ -46,18 +52,25 @@ async function awardInviteBonus(client, sponsorUserId, referredUserId) {
   if (!sponsorUserId || !referredUserId || Number(sponsorUserId) === Number(referredUserId)) return null;
   await ensureReferralTeamSchema(client);
   const result = await client.query(
-    `INSERT INTO referral_invite_bonuses(sponsor_user_id,referred_user_id,coin_amount,metadata)
-     VALUES ($1,$2,$3,$4::jsonb)
+    `INSERT INTO referral_invite_bonuses(sponsor_user_id,referred_user_id,coin_amount,spin_bonus_amount,metadata)
+     VALUES ($1,$2,$3,$4,$5::jsonb)
      ON CONFLICT (referred_user_id) DO NOTHING
      RETURNING *`,
-    [sponsorUserId, referredUserId, INVITE_BONUS_COINS, JSON.stringify({ validation: "registered_successfully" })]
+    [sponsorUserId, referredUserId, INVITE_BONUS_COINS, INVITE_BONUS_SPINS, JSON.stringify({ validation: "registered_successfully", spins: INVITE_BONUS_SPINS })]
   );
   if (!result.rows.length) return null;
-  await client.query(`UPDATE users SET roulette_coins=COALESCE(roulette_coins,0)+$1 WHERE id=$2`, [INVITE_BONUS_COINS, sponsorUserId]);
+  await client.query(
+    `UPDATE users
+     SET roulette_coins=COALESCE(roulette_coins,0)+$1,
+         invite_bonus_spins_remaining=COALESCE(invite_bonus_spins_remaining,0)+$2,
+         invite_bonus_spins_total=COALESCE(invite_bonus_spins_total,0)+$2
+     WHERE id=$3`,
+    [INVITE_BONUS_COINS, INVITE_BONUS_SPINS, sponsorUserId]
+  );
   await client.query(
     `INSERT INTO account_ledger(user_id,balance_type,direction,type,title,amount_usdt,description,reference_type,reference_id,metadata,status)
      VALUES ($1,'roulette_coins','credit','referral_invite_bonus','Bono por invitación',0,$2,'referral_invite_bonus',$3,$4::jsonb,'completed')`,
-    [sponsorUserId, `Bono por invitación válida: ${INVITE_BONUS_COINS} monedas.`, result.rows[0].id, JSON.stringify({ referredUserId, coins: INVITE_BONUS_COINS })]
+    [sponsorUserId, `Bono por invitación válida: ${INVITE_BONUS_COINS} monedas y ${INVITE_BONUS_SPINS} giros extra.`, result.rows[0].id, JSON.stringify({ referredUserId, coins: INVITE_BONUS_COINS, spins: INVITE_BONUS_SPINS })]
   );
   return result.rows[0];
 }
@@ -117,7 +130,7 @@ async function awardWithdrawalReferralCommission(client, withdrawal) {
 
 async function getTeamDashboard(poolOrClient, userId, baseUrl) {
   await ensureReferralTeamSchema(poolOrClient);
-  const userResult = await poolOrClient.query(`SELECT id,email,referral_code FROM users WHERE id=$1`, [userId]);
+  const userResult = await poolOrClient.query(`SELECT id,email,referral_code,COALESCE(invite_bonus_spins_remaining,0) AS invite_bonus_spins_remaining,COALESCE(invite_bonus_spins_total,0) AS invite_bonus_spins_total FROM users WHERE id=$1`, [userId]);
   const user = userResult.rows[0];
 
   const activeVip = await getSponsorVipForCommission(poolOrClient, userId);
@@ -125,6 +138,7 @@ async function getTeamDashboard(poolOrClient, userId, baseUrl) {
     `SELECT
       (SELECT COUNT(*)::int FROM users WHERE referred_by_id=$1) AS total_direct,
       COALESCE((SELECT SUM(coin_amount) FROM referral_invite_bonuses WHERE sponsor_user_id=$1),0) AS invite_coins,
+      COALESCE((SELECT SUM(spin_bonus_amount) FROM referral_invite_bonuses WHERE sponsor_user_id=$1),0) AS invite_spins_awarded,
       COALESCE((SELECT SUM(commission_amount_coins) FROM referral_withdrawal_commissions WHERE sponsor_user_id=$1 AND status='paid'),0) AS withdrawal_commission_coins,
       COALESCE((SELECT SUM(commission_amount_usdt) FROM referral_withdrawal_commissions WHERE sponsor_user_id=$1 AND status='paid'),0) AS withdrawal_commission_usdt
     `,
@@ -178,6 +192,9 @@ async function getTeamDashboard(poolOrClient, userId, baseUrl) {
     currentCommissionPercent: activeVip.percent,
     totalDirectReferrals: Number(row.total_direct || 0),
     inviteBonusCoins: inviteCoins,
+    inviteBonusSpinsAwarded: Number(row.invite_spins_awarded || 0),
+    inviteBonusSpinsRemaining: Number(user?.invite_bonus_spins_remaining || 0),
+    inviteBonusSpinsTotal: Number(user?.invite_bonus_spins_total || 0),
     withdrawalCommissionCoins: withdrawalCoins,
     totalTeamCoins: totalCoins,
     totalTeamUsdtEquivalent: Number((totalCoins / COINS_PER_USDT).toFixed(8)),
@@ -201,6 +218,7 @@ async function getTeamDashboard(poolOrClient, userId, baseUrl) {
 
 module.exports = {
   INVITE_BONUS_COINS,
+  INVITE_BONUS_SPINS,
   ensureReferralTeamSchema,
   awardInviteBonus,
   awardWithdrawalReferralCommission,

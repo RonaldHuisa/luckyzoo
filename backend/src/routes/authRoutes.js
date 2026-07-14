@@ -1,5 +1,5 @@
 const express = require("express");
-const { register, login, changePassword, captcha, getMe, updateProfile, saveWithdrawalAccount, deleteWithdrawalAccount, redeemCode, getRedeemCodeStatus, getRouletteStatus, spinRoulette, exchangeRouletteCoins } = require("../controllers/authController");
+const { register, login, changePassword, captcha, getMe, updateProfile, saveWithdrawalAccount, deleteWithdrawalAccount, redeemCode, getRedeemCodeStatus, getRouletteStatus, spinRoulette, exchangeRouletteCoins, getActivityFeed } = require("../controllers/authController");
 const authMiddleware = require("../middleware/authMiddleware");
 const { registerRateLimiter, loginRateLimiter } = require("../middleware/rateLimitMiddleware");
 
@@ -15,6 +15,7 @@ router.delete("/withdrawal-accounts/:accountId", authMiddleware, deleteWithdrawa
 router.post("/change-password", authMiddleware, changePassword);
 router.get("/redeem-code/status", authMiddleware, getRedeemCodeStatus);
 router.post("/redeem-code", authMiddleware, redeemCode);
+router.get("/activity-feed", authMiddleware, getActivityFeed);
 router.get("/roulette/status", authMiddleware, getRouletteStatus);
 router.post("/roulette/spin", authMiddleware, spinRoulette);
 router.post("/roulette/exchange", authMiddleware, exchangeRouletteCoins);

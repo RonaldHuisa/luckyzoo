@@ -32,11 +32,16 @@ function signCaptchaPayload(payloadPart) {
         .digest("base64url");
 }
 
+function normalizeCaptchaAnswer(answer) {
+    return String(answer || "").trim().toUpperCase();
+}
+
 function createCaptchaToken(answer) {
     const salt = crypto.randomBytes(10).toString("hex");
+    const normalizedAnswer = normalizeCaptchaAnswer(answer);
     const answerHash = crypto
         .createHmac("sha256", getCaptchaSecret())
-        .update(`${String(answer).trim()}:${salt}`)
+        .update(`${normalizedAnswer}:${salt}`)
         .digest("hex");
 
     const payload = {
@@ -76,9 +81,10 @@ function verifyCaptchaToken(token, answer) {
         return false;
     }
 
+    const normalizedAnswer = normalizeCaptchaAnswer(answer);
     const answerHash = crypto
         .createHmac("sha256", getCaptchaSecret())
-        .update(`${String(answer).trim()}:${payload.salt}`)
+        .update(`${normalizedAnswer}:${payload.salt}`)
         .digest("hex");
 
     const answerBuffer = Buffer.from(answerHash);
@@ -86,13 +92,22 @@ function verifyCaptchaToken(token, answer) {
     return answerBuffer.length === expectedAnswerBuffer.length && crypto.timingSafeEqual(answerBuffer, expectedAnswerBuffer);
 }
 
+function generateLetterCaptcha(length = 6) {
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    let value = "";
+    for (let i = 0; i < length; i += 1) {
+        value += alphabet[Math.floor(Math.random() * alphabet.length)];
+    }
+    return value;
+}
+
 function captcha(req, res) {
-    const a = Math.floor(Math.random() * 8) + 2;
-    const b = Math.floor(Math.random() * 8) + 1;
-    const answer = a + b;
+    const answer = generateLetterCaptcha(6);
 
     return res.json({
-        question: `${a} + ${b}`,
+        question: answer,
+        type: "letters",
+        length: 6,
         token: createCaptchaToken(answer),
     });
 }
@@ -113,6 +128,84 @@ function createToken(user) {
             expiresIn: process.env.JWT_EXPIRES_IN || "7d",
         }
     );
+}
+
+
+async function getActivityFeed(req, res) {
+    try {
+        const withdrawals = await pool.query(`
+            SELECT
+                'withdrawal' AS type,
+                u.id AS user_id,
+                u.referral_code,
+                COALESCE(vip.active_vip_level, 0) AS vip_level,
+                w.amount_to_receive AS amount,
+                0::numeric AS coins,
+                w.created_at
+            FROM withdrawals w
+            JOIN users u ON u.id = w.user_id
+            LEFT JOIN LATERAL (
+                SELECT vp.level AS active_vip_level
+                FROM vip_purchases vp
+                WHERE vp.user_id = u.id
+                  AND vp.status = 'active'
+                  AND (vp.expires_at IS NULL OR vp.expires_at > NOW())
+                ORDER BY vp.level DESC, vp.id DESC
+                LIMIT 1
+            ) vip ON TRUE
+            WHERE w.status IN ('paid','completed','approved')
+              AND COALESCE(w.amount_to_receive,0) > 0
+            ORDER BY w.created_at DESC
+            LIMIT 30
+        `);
+
+        const jackpots = await pool.query(`
+            SELECT
+                'jackpot' AS type,
+                u.id AS user_id,
+                u.referral_code,
+                COALESCE(NULLIF(rs.level, 0), COALESCE(vip.active_vip_level, 0), 0) AS vip_level,
+                0::numeric AS amount,
+                rs.coin_amount AS coins,
+                rs.created_at
+            FROM roulette_spins rs
+            JOIN users u ON u.id = rs.user_id
+            LEFT JOIN LATERAL (
+                SELECT vp.level AS active_vip_level
+                FROM vip_purchases vp
+                WHERE vp.user_id = u.id
+                  AND vp.status = 'active'
+                  AND (vp.expires_at IS NULL OR vp.expires_at > NOW())
+                ORDER BY vp.level DESC, vp.id DESC
+                LIMIT 1
+            ) vip ON TRUE
+            WHERE rs.status = 'completed'
+              AND COALESCE(rs.coin_amount,0) IN (500,1000,2000,5000)
+            ORDER BY rs.created_at DESC
+            LIMIT 30
+        `);
+
+        const items = [...withdrawals.rows, ...jackpots.rows]
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            .slice(0, 40)
+            .map((item) => ({
+                type: item.type,
+                userId: Number(item.user_id || 0),
+                userCode: item.referral_code || String(item.user_id || ""),
+                vipLevel: Number(item.vip_level || 0),
+                amount: Number(item.amount || 0),
+                coins: Number(item.coins || 0),
+                createdAt: item.created_at,
+            }));
+
+        return res.json({ items });
+    } catch (error) {
+        console.error("ACTIVITY FEED ERROR:", error);
+        return res.status(500).json({
+            message: "Error al cargar actividad.",
+            detail: error.message,
+        });
+    }
 }
 
 async function register(req, res) {
@@ -1002,4 +1095,5 @@ module.exports = {
   getRouletteStatus,
   spinRoulette,
   exchangeRouletteCoins,
+  getActivityFeed,
 };
