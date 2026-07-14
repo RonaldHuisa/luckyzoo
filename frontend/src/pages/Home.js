@@ -27,13 +27,15 @@ export default function Home() {
   const withdrawable = Number(vip?.user?.withdrawable_usdt || roulette?.usdt || 0);
   const coins = Number(roulette?.coins || 0);
   const spinsLeft = roulette?.spins?.left ?? 0;
-  const spinsHourly = roulette?.spins?.hourly ?? 1;
   const level = roulette?.level || {
     level: 0,
     animalKey: "pollito",
     displayName: "Ruleta Pollito",
     planName: "Pasantía Pollito",
+    shotsPerHour: 1,
+    dailySpins: 1,
   };
+  const spinsBaseHourly = Number(level?.shotsPerHour || level?.dailySpins || 1);
   const animal = assetByAnimal[level.animalKey] || pollito;
 
   return (
@@ -78,7 +80,7 @@ export default function Home() {
         </article>
         <article>
           <span>Tiros disponibles</span>
-          <strong>{spinsLeft}/{spinsHourly}</strong>
+          <strong>{spinsLeft}/{spinsBaseHourly}</strong>
         </article>
         <article>
           <span>Nivel actual</span>

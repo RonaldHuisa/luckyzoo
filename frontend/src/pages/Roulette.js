@@ -214,7 +214,7 @@ export default function Roulette() {
           <span className="pot-title">Pot de monedas</span>
           <div className="pot-number-row">
             <strong><span className="pot-coin-emoji">🪙</span>{formatCoins(animatedCoins)}</strong>
-            <div className="spins-pill">{status?.spins?.left ?? 0}/{status?.spins?.hourly ?? level.shotsPerHour ?? level.dailySpins} tiros</div>
+            <div className="spins-pill">{status?.spins?.left ?? 0}/{level?.shotsPerHour ?? level?.dailySpins ?? 1} tiros</div>
           </div>
         </div>
 
