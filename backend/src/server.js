@@ -13,6 +13,7 @@ const vipRoutes = require("./routes/vipRoutes");
 const adminWithdrawRoutes = require("./routes/adminWithdrawRoutes");
 const adminPanelRoutes = require("./routes/adminPanelRoutes");
 const adminSupportRoutes = require("./routes/adminSupportRoutes");
+const alchemyWebhookRoutes = require("./routes/alchemyWebhookRoutes");
 const { apiRateLimiter } = require("./middleware/rateLimitMiddleware");
 
 const app = express();
@@ -38,7 +39,7 @@ app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf ? buf.toSt
 app.use("/uploads/support", express.static(path.join(__dirname, "../uploads/support")));
 app.use("/api", apiRateLimiter);
 
-app.get("/", (req, res) => res.json({ message: "Royal Imperial API funcionando.", mode: "minimal-roulette" }));
+app.get("/", (req, res) => res.json({ message: "Lucky Zoo API funcionando.", mode: "minimal-roulette" }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/wallet", walletRoutes);
@@ -50,6 +51,7 @@ app.use("/api/vip", vipRoutes);
 app.use("/api/admin/support", adminSupportRoutes);
 app.use("/api/admin/panel", adminPanelRoutes);
 app.use("/api/admin", adminWithdrawRoutes);
+app.use("/api/webhooks/alchemy", alchemyWebhookRoutes);
 
 app.use((req, res) => res.status(404).json({ message: "Ruta no encontrada." }));
 app.use((err, req, res, next) => {
@@ -58,4 +60,4 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Royal Imperial API minimal corriendo en puerto ${PORT}`));
+app.listen(PORT, () => console.log(`Lucky Zoo API corriendo en puerto ${PORT}`));
