@@ -1,1 +1,20 @@
-{"short_name":"Lucky Zoo","name":"Lucky Zoo","icons":[{"src":"/royal-icon.svg","sizes":"any","type":"image/svg+xml"}],"start_url":"/","display":"standalone","theme_color":"#E6E1FA","background_color":"#FAFBFD"}
+{
+  "short_name": "Lucky Zoo",
+  "name": "Lucky Zoo",
+  "icons": [
+    {
+      "src": "/luckyzoo-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/luckyzoo-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#9b2b1f",
+  "background_color": "#fff4df"
+}
