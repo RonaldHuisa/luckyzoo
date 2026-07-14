@@ -669,7 +669,7 @@ async function listTopUsers(req, res) {
     const [coins, withdrawable, withdrawals, referrals] = await Promise.all([
       pool.query(`${baseCte} SELECT * FROM base ${filter} ORDER BY roulette_coins DESC, id ASC LIMIT 20`, params),
       pool.query(`${baseCte} SELECT * FROM base ${filter} ORDER BY withdrawable_usdt DESC, id ASC LIMIT 20`, params),
-      pool.query(`${baseCte} SELECT * FROM base ${filter} ORDER BY withdrawals_count DESC, total_withdrawn DESC, id ASC LIMIT 20`, params),
+      pool.query(`${baseCte} SELECT * FROM base ${filter} ORDER BY total_withdrawn DESC, withdrawals_count DESC, id ASC LIMIT 20`, params),
       pool.query(`${baseCte} SELECT * FROM base ${filter} ORDER BY direct_referrals DESC, id ASC LIMIT 20`, params),
     ]);
 
