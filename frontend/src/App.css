@@ -8621,3 +8621,45 @@ body {
   justify-content: center !important;
   text-align: center !important;
 }
+
+
+
+/* === V80 LOADING: dado girando lento, sin texto === */
+.global-loading-backdrop.global-loading-dice-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  display: grid !important;
+  place-items: center !important;
+  background: rgba(0, 0, 0, .18) !important;
+  pointer-events: none !important;
+}
+
+.global-loading-dice {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  background: #fffaf0;
+  border: 1px solid #d9a94e;
+  border-radius: 0;
+  color: #d83222;
+  font-size: 32px;
+  line-height: 1;
+  box-shadow: none;
+  animation: luckyZooDiceSpin 1.8s linear infinite;
+}
+
+.global-loading-box,
+.global-loading-dot {
+  display: none !important;
+}
+
+@keyframes luckyZooDiceSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
