@@ -10,6 +10,8 @@ const {
   updateReferralLimit,
   changeUserPassword,
   updateWithdrawalWallet,
+  adjustUserBalance,
+  listTopUsers,
 } = require("../controllers/adminPanelController");
 
 const router = express.Router();
@@ -22,6 +24,8 @@ router.get("/users", listUsers);
 router.get("/investments", listInvestments);
 router.get("/withdrawals", listWithdrawals);
 router.get("/recharges", listRecharges);
+router.get("/tops", listTopUsers);
+router.patch("/users/:userId/balance", adjustUserBalance);
 router.patch("/users/:userId/referral-limit", updateReferralLimit);
 router.patch("/users/:userId/password", changeUserPassword);
 router.patch("/users/:userId/wallet", updateWithdrawalWallet);
