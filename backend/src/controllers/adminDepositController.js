@@ -130,7 +130,7 @@ async function listAdminDeposits(req, res) {
 async function getAdminDepositPreview(req, res) {
   try {
     const depositId = Number(req.params.depositId);
-    const context = await getCollectionStatusForDeposit(depositId);
+    const context = await getCollectionStatusForDeposit(depositId, { allowSwept: true });
 
     return res.json({
       deposit: {
@@ -143,6 +143,8 @@ async function getAdminDepositPreview(req, res) {
         sweepStatus: context.deposit.sweep_status,
         topupTxHash: context.deposit.bnb_topup_tx_hash,
         sweepTxHash: context.deposit.sweep_tx_hash,
+        sweptAt: context.deposit.swept_at,
+        collectionWallet: context.collectionWallet,
       },
       network: {
         code: context.network.code,
