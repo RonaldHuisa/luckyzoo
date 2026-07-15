@@ -13,6 +13,7 @@ const vipRoutes = require("./routes/vipRoutes");
 const adminWithdrawRoutes = require("./routes/adminWithdrawRoutes");
 const adminPanelRoutes = require("./routes/adminPanelRoutes");
 const adminSupportRoutes = require("./routes/adminSupportRoutes");
+const adminDepositRoutes = require("./routes/adminDepositRoutes");
 const alchemyWebhookRoutes = require("./routes/alchemyWebhookRoutes");
 const { apiRateLimiter } = require("./middleware/rateLimitMiddleware");
 
@@ -50,6 +51,7 @@ app.use("/api/referrals", referralRoutes);
 app.use("/api/vip", vipRoutes);
 app.use("/api/admin/support", adminSupportRoutes);
 app.use("/api/admin/panel", adminPanelRoutes);
+app.use("/api/admin/collection", adminDepositRoutes);
 app.use("/api/admin", adminWithdrawRoutes);
 app.use("/api/webhooks/alchemy", alchemyWebhookRoutes);
 
