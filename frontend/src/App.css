@@ -8663,3 +8663,224 @@ body {
     transform: rotate(360deg);
   }
 }
+
+
+
+/* === V84 ADMIN: recolección de recargas a wallet principal === */
+.admin-v84-collection-section {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-v84-collection-head {
+  align-items: end !important;
+}
+
+.admin-v84-collection-head button,
+.admin-v84-modal-actions button,
+.admin-v84-collection-actions button {
+  border: 0;
+  border-radius: 4px;
+  background: #3b2414;
+  color: #fff;
+  min-height: 36px;
+  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-weight: 900;
+  font-size: 12px;
+}
+
+.admin-v84-collection-actions button:disabled,
+.admin-v84-modal-actions button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.admin-v84-info-box {
+  display: grid;
+  gap: 3px;
+  border: 1px solid #d9a94e;
+  background: #fffaf0;
+  color: #3b2414;
+  padding: 10px;
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.admin-v84-info-box strong {
+  color: #150a02;
+  font-size: 13px;
+}
+
+.admin-v84-info-box span {
+  color: #704523;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.admin-v84-collection-list {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-v84-collection-card {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(140px, .8fr) minmax(140px, .8fr) 110px minmax(270px, auto);
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #d9a94e;
+  background: #fffaf0;
+  border-radius: 4px;
+  padding: 10px;
+  box-shadow: none;
+}
+
+.admin-v84-collection-card strong {
+  color: #150a02;
+  font-size: 13px;
+  line-height: 1.15;
+}
+
+.admin-v84-collection-card span {
+  display: block;
+  color: #704523;
+  font-size: 10.5px;
+  line-height: 1.2;
+}
+
+.admin-v84-collection-main span {
+  margin-top: 3px;
+}
+
+.admin-v84-collection-status {
+  min-height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d9a94e;
+  background: #fff5d7;
+  color: #3b2414;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 900;
+  text-align: center;
+  padding: 0 8px;
+}
+
+.admin-v84-collection-status.swept {
+  background: #e8ffe9;
+  border-color: #3aaa55;
+  color: #126b25;
+}
+
+.admin-v84-collection-status.gas_short,
+.admin-v84-collection-status.pending {
+  background: #fff5d7;
+}
+
+.admin-v84-collection-status.gas_ready {
+  background: #e8f1ff;
+  border-color: #4c78d8;
+  color: #1f4d9b;
+}
+
+.admin-v84-collection-status.failed {
+  background: #ffe5e1;
+  border-color: #d83222;
+  color: #9f271c;
+}
+
+.admin-v84-collection-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.admin-v84-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.admin-v84-preview-grid article {
+  border: 1px solid #ead3a6;
+  background: #fffdf8;
+  border-radius: 4px;
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.admin-v84-preview-grid article > span {
+  color: #704523;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-v84-preview-grid strong {
+  color: #150a02;
+  font-size: 14px;
+}
+
+.admin-v84-preview-grid small {
+  color: #704523;
+  font-size: 10.5px;
+}
+
+.admin-v84-note {
+  margin-top: 10px;
+  border: 1px solid #d9a94e;
+  background: #fff5d7;
+  padding: 9px;
+  border-radius: 4px;
+  display: grid;
+  gap: 3px;
+  color: #3b2414;
+  font-size: 12px;
+}
+
+.admin-v84-modal-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.admin-v84-tx-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+@media (max-width: 1100px) {
+  .admin-v84-collection-card {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-v84-collection-status,
+  .admin-v84-collection-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .admin-v84-preview-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-v84-collection-card,
+  .admin-v84-preview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-v84-collection-actions button,
+  .admin-v84-modal-actions button {
+    width: 100%;
+  }
+}

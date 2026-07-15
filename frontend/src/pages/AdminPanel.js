@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { FiExternalLink, FiInfo, FiKey, FiMessageCircle, FiPlusCircle, FiRefreshCw, FiSave, FiX } from "react-icons/fi";
+import { FiExternalLink, FiEye, FiInfo, FiKey, FiMessageCircle, FiPlusCircle, FiRefreshCw, FiSave, FiSend, FiX } from "react-icons/fi";
 import api from "../services/api";
 
 const money = (value) => `${Number(value || 0).toFixed(2)} USDT`;
@@ -71,6 +71,32 @@ function adminAdjustmentAmount(item) {
     return `${direction}${amount.toLocaleString("es-PE")} monedas`;
   }
   return `${direction}${money(item?.amount_usdt)}`;
+}
+
+function collectionStatusLabel(status = "") {
+  const value = String(status || "pending");
+  const map = {
+    pending: "Pendiente",
+    gas_short: "Falta gas",
+    gas_pending: "Gas enviado",
+    gas_ready: "Gas listo",
+    collecting: "Recolectando",
+    swept: "Recolectado",
+    failed: "Falló",
+  };
+  return map[value] || value;
+}
+
+function canSendGas(item) {
+  return Boolean(item?.actions?.canSendGas);
+}
+
+function canCollect(item) {
+  return Boolean(item?.actions?.canCollect);
+}
+
+function canRefreshCollection(item) {
+  return Boolean(item?.actions?.canRefresh);
 }
 
 function normalizeBalanceType(value = "") {
@@ -260,6 +286,81 @@ function UserInfoModal({ user, onClose, onAdjustRecharge, onAdjustWithdrawable, 
   );
 }
 
+
+function CollectionPreviewModal({ preview, onClose, onSendGas, onCollect, onRefresh }) {
+  if (!preview) return null;
+
+  const deposit = preview.deposit || {};
+  const network = preview.network || {};
+  const balances = preview.balances || {};
+
+  return (
+    <div className="admin-v70-modal-backdrop" onClick={onClose}>
+      <section className="admin-v70-modal admin-v84-collection-modal" onClick={(event) => event.stopPropagation()}>
+        <header className="admin-v70-modal-head">
+          <div>
+            <span>Recolección de recarga</span>
+            <h2>Depósito #{deposit.id}</h2>
+            <p>{deposit.email} · {network.code} · {money(deposit.amountUsdt)}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Cerrar"><FiX /></button>
+        </header>
+
+        <div className="admin-v84-preview-grid">
+          <article>
+            <span>Wallet usuario</span>
+            <ExplorerLink href={addressUrl(network.code, deposit.walletAddress)}>
+              {shortText(deposit.walletAddress, 9, 9)}
+            </ExplorerLink>
+          </article>
+          <article>
+            <span>Wallet principal</span>
+            <ExplorerLink href={addressUrl(network.code, preview?.deposit?.collectionWallet || balances.collectionWallet)}>
+              {shortText(preview?.deposit?.collectionWallet || balances.collectionWallet, 9, 9)}
+            </ExplorerLink>
+          </article>
+          <article>
+            <span>USDT en wallet usuario</span>
+            <strong>{Number(balances.userTokenRaw || 0) > 0 ? "Detectado" : "Sin token"}</strong>
+            <small>{shortText(balances.userTokenRaw || "0", 12, 8)} raw</small>
+          </article>
+          <article>
+            <span>Gas usuario</span>
+            <strong>{Number(balances.userNative || 0).toFixed(6)} {network.nativeSymbol}</strong>
+            <small>Necesario aprox. {Number(balances.requiredNative || 0).toFixed(6)} {network.nativeSymbol}</small>
+          </article>
+          <article>
+            <span>Gas wallet plataforma</span>
+            <strong>{Number(balances.platformNative || 0).toFixed(6)} {network.nativeSymbol}</strong>
+            <small>Desde aquí se envía gas al usuario.</small>
+          </article>
+          <article>
+            <span>Estado</span>
+            <strong>{collectionStatusLabel(deposit.sweepStatus)}</strong>
+            <small>{balances.hasEnoughNative ? "Gas listo" : "Falta gas"} · {balances.hasEnoughToken ? "USDT listo" : "Falta USDT"}</small>
+          </article>
+        </div>
+
+        <div className="admin-v84-note">
+          <strong>Flujo correcto:</strong>
+          <span>1) Enviar gas si falta. 2) Actualizar estado. 3) Recolectar USDT hacia tu wallet principal.</span>
+        </div>
+
+        <div className="admin-v84-modal-actions">
+          <button type="button" onClick={() => onSendGas(deposit.id)}><FiSend /> Enviar gas</button>
+          <button type="button" onClick={() => onRefresh(deposit.id)}><FiRefreshCw /> Actualizar</button>
+          <button type="button" onClick={() => onCollect(deposit.id)}><FiPlusCircle /> Recolectar USDT</button>
+        </div>
+
+        <div className="admin-v84-tx-list">
+          <ExplorerLink href={txUrl(network.code, deposit.topupTxHash)}>TX gas: {shortText(deposit.topupTxHash)}</ExplorerLink>
+          <ExplorerLink href={txUrl(network.code, deposit.sweepTxHash)}>TX recolección: {shortText(deposit.sweepTxHash)}</ExplorerLink>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function AdminPanel() {
   const [dashboard, setDashboard] = useState(null);
   const [users, setUsers] = useState([]);
@@ -267,6 +368,8 @@ export default function AdminPanel() {
   const [investments, setInvestments] = useState([]);
   const [recharges, setRecharges] = useState({ normalRecharges: [], adminRecharges: [] });
   const [topUsers, setTopUsers] = useState({ topCoins: [], topWithdrawable: [], topWithdrawals: [], topReferrals: [] });
+  const [collectionDeposits, setCollectionDeposits] = useState([]);
+  const [collectionPreview, setCollectionPreview] = useState(null);
   const [topVipFilter, setTopVipFilter] = useState("all");
   const [topMetricFilter, setTopMetricFilter] = useState("topCoins");
   const [search, setSearch] = useState("");
@@ -295,16 +398,74 @@ export default function AdminPanel() {
     setTopUsers(data || { topCoins: [], topWithdrawable: [], topWithdrawals: [], topReferrals: [] });
   };
 
+  const loadCollectionDeposits = async () => {
+    const { data } = await api.get("/admin/collection/deposits?limit=40");
+    setCollectionDeposits(data.deposits || []);
+    return data.deposits || [];
+  };
+
+  const openCollectionPreview = async (depositId) => {
+    try {
+      const { data } = await api.get(`/admin/collection/deposits/${depositId}/preview`);
+      setCollectionPreview(data);
+    } catch (err) {
+      showMessage(err.message || "No se pudo cargar la vista de recolección.");
+    }
+  };
+
+  const sendCollectionGas = async (depositId) => {
+    if (!depositId) return;
+    try {
+      const { data } = await api.post(`/admin/collection/deposits/${depositId}/send-gas`);
+      showMessage(data.message || "Gas enviado.");
+      await loadCollectionDeposits();
+      await openCollectionPreview(depositId);
+    } catch (err) {
+      showMessage(err.message || "No se pudo enviar gas.");
+    }
+  };
+
+  const refreshCollectionDeposit = async (depositId) => {
+    if (!depositId) return;
+    try {
+      const { data } = await api.post(`/admin/collection/deposits/${depositId}/refresh`);
+      showMessage(data.message || "Estado actualizado.");
+      await loadCollectionDeposits();
+      await openCollectionPreview(depositId);
+    } catch (err) {
+      showMessage(err.message || "No se pudo actualizar estado.");
+    }
+  };
+
+  const collectDepositToMainWallet = async (depositId) => {
+    if (!depositId) return;
+    const ok = window.confirm("¿Recolectar este USDT hacia la wallet principal?");
+    if (!ok) return;
+
+    try {
+      const { data } = await api.post(`/admin/collection/deposits/${depositId}/collect`);
+      showMessage(data.message || "USDT recolectado.");
+      await Promise.all([
+        loadCollectionDeposits(),
+        api.get("/admin/panel/dashboard").then((res) => setDashboard(res.data)),
+      ]);
+      await openCollectionPreview(depositId);
+    } catch (err) {
+      showMessage(err.message || "No se pudo recolectar.");
+    }
+  };
+
   const load = async () => {
     setLoading(true);
     try {
-      const [dashboardRes, usersRes, withdrawalsRes, investmentsRes, rechargesRes, topsRes] = await Promise.all([
+      const [dashboardRes, usersRes, withdrawalsRes, investmentsRes, rechargesRes, topsRes, collectionRes] = await Promise.all([
         api.get("/admin/panel/dashboard"),
         api.get("/admin/panel/users"),
         api.get("/admin/panel/withdrawals"),
         api.get("/admin/panel/investments"),
         api.get("/admin/panel/recharges"),
         api.get(`/admin/panel/tops?vip=${encodeURIComponent(topVipFilter)}`),
+        api.get("/admin/collection/deposits?limit=40"),
       ]);
       setDashboard(dashboardRes.data);
       setUsers(usersRes.data.users || []);
@@ -312,6 +473,7 @@ export default function AdminPanel() {
       setInvestments(investmentsRes.data.investments || []);
       setRecharges(rechargesRes.data || { normalRecharges: [], adminRecharges: [] });
       setTopUsers(topsRes.data || { topCoins: [], topWithdrawable: [], topWithdrawals: [], topReferrals: [] });
+      setCollectionDeposits(collectionRes.data.deposits || []);
     } catch (err) {
       showMessage(err.message || "No se pudo cargar el panel admin.");
     } finally {
@@ -466,6 +628,14 @@ export default function AdminPanel() {
         onChangeWallet={changeWallet}
       />
 
+      <CollectionPreviewModal
+        preview={collectionPreview}
+        onClose={() => setCollectionPreview(null)}
+        onSendGas={sendCollectionGas}
+        onCollect={collectDepositToMainWallet}
+        onRefresh={refreshCollectionDeposit}
+      />
+
       <header className="admin-v55-head">
         <div>
           <span>Lucky Zoo Admin</span>
@@ -493,6 +663,7 @@ export default function AdminPanel() {
           ["retiros", "Retiros"],
           ["inversiones", "Inversiones"],
           ["recargas", "Recargas"],
+          ["recoleccion", "Recolectar"],
           ["tops", "TOP"],
         ].map(([key, label]) => (
           <button key={key} onClick={() => setActiveSection(key)} className={activeSection === key ? "active" : ""}>
@@ -556,6 +727,7 @@ export default function AdminPanel() {
                   <th>TX</th>
                   <th>Estado</th>
                   <th>Fecha</th>
+                  <th>Recolección</th>
                 </tr>
               </thead>
               <tbody>
@@ -573,6 +745,7 @@ export default function AdminPanel() {
                     <td><ExplorerLink href={txUrl(item.network, item.tx_hash)}>{shortText(item.tx_hash)}</ExplorerLink></td>
                     <td>{item.status}</td>
                     <td>{formatDate(item.created_at)}</td>
+                    <td>{collectionStatusLabel(item.sweep_status)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -676,6 +849,64 @@ export default function AdminPanel() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </section>
+      )}
+
+
+      {activeSection === "recoleccion" && (
+        <section className="admin-v55-section admin-v84-collection-section">
+          <div className="admin-v55-section-head admin-v84-collection-head">
+            <div>
+              <h2>Recolectar recargas</h2>
+              <p>Mueve el USDT recibido en wallets de usuarios hacia tu wallet principal.</p>
+            </div>
+            <button type="button" onClick={loadCollectionDeposits}><FiRefreshCw /> Actualizar</button>
+          </div>
+
+          <div className="admin-v84-info-box">
+            <strong>Proceso:</strong>
+            <span>Primero envía gas a la wallet del usuario si falta BNB/MATIC. Luego actualiza y recolecta el USDT a tu wallet principal.</span>
+          </div>
+
+          <div className="admin-v84-collection-list">
+            {collectionDeposits.map((item) => (
+              <article key={item.id} className="admin-v84-collection-card">
+                <div className="admin-v84-collection-main">
+                  <strong>#{item.id} · {item.email}</strong>
+                  <span>{item.network} · {money(item.amount_usdt)} · {formatDate(item.created_at)}</span>
+                </div>
+
+                <div>
+                  <span>Wallet usuario</span>
+                  <ExplorerLink href={addressUrl(item.network, item.wallet_address)}>
+                    {shortText(item.wallet_address, 7, 7)}
+                  </ExplorerLink>
+                </div>
+
+                <div>
+                  <span>TX recarga</span>
+                  <ExplorerLink href={txUrl(item.network, item.tx_hash)}>
+                    {shortText(item.tx_hash, 7, 7)}
+                  </ExplorerLink>
+                </div>
+
+                <div className={`admin-v84-collection-status ${item.sweep_status || "pending"}`}>
+                  {collectionStatusLabel(item.sweep_status)}
+                </div>
+
+                <div className="admin-v84-collection-actions">
+                  <button type="button" onClick={() => openCollectionPreview(item.id)}><FiEye /> Ver</button>
+                  <button type="button" disabled={!canSendGas(item)} onClick={() => sendCollectionGas(item.id)}><FiSend /> Gas</button>
+                  <button type="button" disabled={!canRefreshCollection(item)} onClick={() => refreshCollectionDeposit(item.id)}><FiRefreshCw /> Estado</button>
+                  <button type="button" disabled={!canCollect(item)} onClick={() => collectDepositToMainWallet(item.id)}><FiPlusCircle /> Colectar</button>
+                </div>
+              </article>
+            ))}
+
+            {!collectionDeposits.length && (
+              <p className="admin-v70-empty">No hay recargas pendientes de recolección.</p>
+            )}
           </div>
         </section>
       )}
