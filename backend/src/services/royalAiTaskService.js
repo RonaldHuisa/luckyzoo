@@ -1,19 +1,31 @@
 const LEVEL_CONFIG = {
-  0: { name: "Pasantía Pollito", animalKey: "pollito", dailyTasks: 0, cooldownSeconds: 0, rewardUsdt: 0, difficulty: "Gratis", dailyRouletteSpins: 1, shotsPerHour: 1, referralCommissionPercent: 5, priceUsdt: 0, validDays: 0, rouletteRewards: [20, 40, 100, 250, 500, 1000, 2000, 5000] },
-  1: { name: "VIP 1 Conejo", animalKey: "conejo", dailyTasks: 0, cooldownSeconds: 0, rewardUsdt: 0, difficulty: "VIP 1", dailyRouletteSpins: 5, shotsPerHour: 5, referralCommissionPercent: 10, priceUsdt: 5, validDays: 0, rouletteRewards: [20, 40, 100, 250, 500, 1000, 2000, 5000] },
-  2: { name: "VIP 2 Oveja", animalKey: "oveja", dailyTasks: 0, cooldownSeconds: 0, rewardUsdt: 0, difficulty: "VIP 2", dailyRouletteSpins: 15, shotsPerHour: 15, referralCommissionPercent: 20, priceUsdt: 50, validDays: 0, rouletteRewards: [20, 40, 100, 250, 500, 1000, 2000, 5000] },
-  3: { name: "VIP 3 Toro", animalKey: "toro", dailyTasks: 0, cooldownSeconds: 0, rewardUsdt: 0, difficulty: "VIP 3", dailyRouletteSpins: 35, shotsPerHour: 35, referralCommissionPercent: 30, priceUsdt: 200, validDays: 0, rouletteRewards: [20, 40, 100, 250, 500, 1000, 2000, 5000] },
-  4: { name: "VIP 4 León", animalKey: "leon", dailyTasks: 0, cooldownSeconds: 0, rewardUsdt: 0, difficulty: "VIP 4", dailyRouletteSpins: 55, shotsPerHour: 55, referralCommissionPercent: 40, priceUsdt: 500, validDays: 0, rouletteRewards: [20, 40, 100, 250, 500, 1000, 2000, 5000] },
-  5: { name: "VIP 5 Tigre", animalKey: "tigre", dailyTasks: 0, cooldownSeconds: 0, rewardUsdt: 0, difficulty: "VIP 5", dailyRouletteSpins: 80, shotsPerHour: 80, referralCommissionPercent: 50, priceUsdt: 1200, validDays: 0, rouletteRewards: [20, 40, 100, 250, 500, 1000, 2000, 5000] },
+  // Modelo v1.0.79:
+  // - Pasantía / plan gratis: lunes a domingo.
+  // - Planes VIP/R1+: lunes a viernes.
+  // - Recuperación estimada VIP: 25 días laborales.
+  // - Duración VIP: 120 días calendario.
+  // - Pasantía: 5 días, 6 tareas, 0.40 USDT diario.
+  0: { name: "Pasantía", dailyTasks: 6, cooldownSeconds: 20, rewardUsdt: 0.0666666667, difficulty: "Inicial" },
+  1: { name: "R1", dailyTasks: 6, cooldownSeconds: 30, rewardUsdt: 0.20, difficulty: "Básica" },
+  2: { name: "R2", dailyTasks: 8, cooldownSeconds: 45, rewardUsdt: 0.40, difficulty: "Básica" },
+  3: { name: "R3", dailyTasks: 10, cooldownSeconds: 60, rewardUsdt: 0.60, difficulty: "Intermedia" },
+  4: { name: "R4", dailyTasks: 12, cooldownSeconds: 75, rewardUsdt: 1.00, difficulty: "Intermedia" },
+  5: { name: "R5", dailyTasks: 14, cooldownSeconds: 90, rewardUsdt: 1.7142857143, difficulty: "Media-alta" },
+  6: { name: "R6", dailyTasks: 16, cooldownSeconds: 105, rewardUsdt: 3.00, difficulty: "Avanzada" },
+  7: { name: "R7", dailyTasks: 18, cooldownSeconds: 120, rewardUsdt: 5.5555555556, difficulty: "Avanzada" },
+  8: { name: "R8", dailyTasks: 20, cooldownSeconds: 150, rewardUsdt: 10.00, difficulty: "Premium" },
 };
 
 const DEFAULT_PACKAGES = [
-  { level: 0, name: "Pasantía Pollito", price: 0, validDays: 0, isPurchasable: false },
-  { level: 1, name: "VIP 1 Conejo", price: 5, validDays: 0, isPurchasable: true },
-  { level: 2, name: "VIP 2 Oveja", price: 50, validDays: 0, isPurchasable: true },
-  { level: 3, name: "VIP 3 Toro", price: 200, validDays: 0, isPurchasable: true },
-  { level: 4, name: "VIP 4 León", price: 500, validDays: 0, isPurchasable: true },
-  { level: 5, name: "VIP 5 Tigre", price: 1200, validDays: 0, isPurchasable: true },
+  { level: 0, name: "Pasantía", price: 0, validDays: 5, isPurchasable: false },
+  { level: 1, name: "R1", price: 30, validDays: 120, isPurchasable: true },
+  { level: 2, name: "R2", price: 80, validDays: 120, isPurchasable: false },
+  { level: 3, name: "R3", price: 150, validDays: 120, isPurchasable: false },
+  { level: 4, name: "R4", price: 300, validDays: 120, isPurchasable: false },
+  { level: 5, name: "R5", price: 600, validDays: 120, isPurchasable: false },
+  { level: 6, name: "R6", price: 1200, validDays: 120, isPurchasable: false },
+  { level: 7, name: "R7", price: 2500, validDays: 120, isPurchasable: false },
+  { level: 8, name: "R8", price: 5000, validDays: 120, isPurchasable: false },
 ];
 
 const DEFAULT_QUESTIONS = [
@@ -54,7 +66,7 @@ async function getRuntimeLevelConfig(client, level) {
   const fallback = getLevelConfig(numericLevel);
   const result = await client.query(
     `
-    SELECT level,name,price_usdt,daily_income_usdt,valid_days,is_purchasable,task_reward_usdt,task_cooldown_seconds,task_cooldown_minutes,daily_tasks,animal_key,plan_type,daily_roulette_spins,roulette_rewards,shots_per_hour,referral_commission_percent,daily_min_rate,daily_max_rate
+    SELECT level,name,price_usdt,daily_income_usdt,valid_days,is_purchasable,task_reward_usdt,task_cooldown_seconds,task_cooldown_minutes,daily_tasks
     FROM vip_packages
     WHERE level = $1
     LIMIT 1
@@ -81,14 +93,6 @@ async function getRuntimeLevelConfig(client, level) {
     cooldownMinutes: Math.ceil(cooldownSeconds / 60),
     rewardUsdt,
     difficulty: fallback?.difficulty || "Royal",
-    animalKey: row?.animal_key || fallback?.animalKey || "pollito",
-    planType: row?.plan_type || "roulette",
-    dailyRouletteSpins: Number(row?.daily_roulette_spins || row?.shots_per_hour || fallback?.dailyRouletteSpins || 1),
-    shotsPerHour: Number(row?.shots_per_hour || fallback?.shotsPerHour || fallback?.dailyRouletteSpins || 1),
-    referralCommissionPercent: Number(row?.referral_commission_percent || fallback?.referralCommissionPercent || 5),
-    dailyMinRate: Number(row?.daily_min_rate || 0.06),
-    dailyMaxRate: Number(row?.daily_max_rate || 0.07),
-    rouletteRewards: row?.roulette_rewards || fallback?.rouletteRewards || [],
   };
 }
 
@@ -137,19 +141,6 @@ async function ensureRoyalAiSchema(client) {
   await client.query(`CREATE INDEX IF NOT EXISTS idx_ai_task_responses_user_completed ON ai_task_responses(user_id, completed_at DESC)`);
   await client.query(`CREATE INDEX IF NOT EXISTS idx_ai_task_questions_level_active ON ai_task_questions(level_min, is_active)`);
 
-  await client.query(`ALTER TABLE vip_packages ADD COLUMN IF NOT EXISTS animal_key VARCHAR(30) DEFAULT 'pollito'`);
-  await client.query(`ALTER TABLE vip_packages ADD COLUMN IF NOT EXISTS plan_type VARCHAR(30) DEFAULT 'roulette'`);
-  await client.query(`ALTER TABLE vip_packages ADD COLUMN IF NOT EXISTS daily_roulette_spins INTEGER DEFAULT 1`);
-  await client.query(`ALTER TABLE vip_packages ADD COLUMN IF NOT EXISTS shots_per_hour INTEGER DEFAULT 1`);
-  await client.query(`ALTER TABLE vip_packages ADD COLUMN IF NOT EXISTS referral_commission_percent NUMERIC(8,4) DEFAULT 5`);
-  await client.query(`ALTER TABLE vip_packages ADD COLUMN IF NOT EXISTS daily_min_rate NUMERIC(8,6) DEFAULT 0.06`);
-  await client.query(`ALTER TABLE vip_packages ADD COLUMN IF NOT EXISTS daily_max_rate NUMERIC(8,6) DEFAULT 0.07`);
-  await client.query(`ALTER TABLE vip_purchases ADD COLUMN IF NOT EXISTS shots_per_hour INTEGER DEFAULT 1`);
-  await client.query(`ALTER TABLE vip_purchases ADD COLUMN IF NOT EXISTS referral_commission_percent NUMERIC(8,4) DEFAULT 5`);
-  await client.query(`ALTER TABLE vip_purchases ADD COLUMN IF NOT EXISTS daily_target_coins NUMERIC(38,0) DEFAULT 0`);
-  await client.query(`ALTER TABLE vip_purchases ADD COLUMN IF NOT EXISTS total_generated_coins NUMERIC(38,0) DEFAULT 0`);
-
-  await client.query(`ALTER TABLE vip_packages ADD COLUMN IF NOT EXISTS roulette_rewards JSONB DEFAULT '[]'::jsonb`);
   await client.query(`ALTER TABLE vip_packages ADD COLUMN IF NOT EXISTS daily_tasks INTEGER`);
   await client.query(`ALTER TABLE vip_packages ADD COLUMN IF NOT EXISTS task_cooldown_seconds INTEGER`);
   await client.query(`ALTER TABLE vip_purchases ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITHOUT TIME ZONE`);
@@ -177,47 +168,22 @@ async function seedRoyalVipPackages(client) {
     const cfg = getLevelConfig(pkg.level);
     await client.query(
       `
-      INSERT INTO vip_packages(level, name, price_usdt, daily_income_usdt, valid_days, is_purchasable, task_reward_usdt, task_cooldown_minutes, task_cooldown_seconds, daily_tasks, animal_key, plan_type, daily_roulette_spins, roulette_rewards, shots_per_hour, referral_commission_percent, daily_min_rate, daily_max_rate, updated_at)
-      VALUES ($1,$2,$3,$4,$5,$9,$6,CASE WHEN $7::int > 0 THEN CEIL($7::numeric/60) ELSE 0 END,$7,$8,$10,'roulette',$11,$12::jsonb,$13,$14,$15,$16,NOW())
+      INSERT INTO vip_packages(level, name, price_usdt, daily_income_usdt, valid_days, is_purchasable, task_reward_usdt, task_cooldown_minutes, task_cooldown_seconds, daily_tasks, updated_at)
+      VALUES ($1,$2,$3,$4,$5,$9,$6,CEIL($7::numeric/60),$7,$8,NOW())
       ON CONFLICT (level)
       DO UPDATE SET
-        name = EXCLUDED.name,
-        price_usdt = EXCLUDED.price_usdt,
-        daily_income_usdt = EXCLUDED.daily_income_usdt,
-        valid_days = EXCLUDED.valid_days,
-        is_purchasable = EXCLUDED.is_purchasable,
-        task_reward_usdt = EXCLUDED.task_reward_usdt,
-        task_cooldown_minutes = EXCLUDED.task_cooldown_minutes,
-        task_cooldown_seconds = EXCLUDED.task_cooldown_seconds,
-        daily_tasks = EXCLUDED.daily_tasks,
-        animal_key = EXCLUDED.animal_key,
-        plan_type = EXCLUDED.plan_type,
-        daily_roulette_spins = EXCLUDED.daily_roulette_spins,
-        roulette_rewards = EXCLUDED.roulette_rewards,
-        shots_per_hour = EXCLUDED.shots_per_hour,
-        referral_commission_percent = EXCLUDED.referral_commission_percent,
-        daily_min_rate = EXCLUDED.daily_min_rate,
-        daily_max_rate = EXCLUDED.daily_max_rate,
-        updated_at = NOW()
+        name = vip_packages.name,
+        price_usdt = vip_packages.price_usdt,
+        daily_income_usdt = vip_packages.daily_income_usdt,
+        valid_days = vip_packages.valid_days,
+        is_purchasable = vip_packages.is_purchasable,
+        task_reward_usdt = vip_packages.task_reward_usdt,
+        task_cooldown_minutes = vip_packages.task_cooldown_minutes,
+        task_cooldown_seconds = vip_packages.task_cooldown_seconds,
+        daily_tasks = vip_packages.daily_tasks,
+        updated_at = vip_packages.updated_at
       `,
-      [
-        pkg.level,
-        cfg.name,
-        pkg.price,
-        cfg.rewardUsdt * cfg.dailyTasks,
-        pkg.validDays,
-        cfg.rewardUsdt,
-        cfg.cooldownSeconds,
-        cfg.dailyTasks,
-        pkg.isPurchasable !== false,
-        cfg.animalKey,
-        cfg.dailyRouletteSpins,
-        JSON.stringify(cfg.rouletteRewards || []),
-        cfg.shotsPerHour || cfg.dailyRouletteSpins || 1,
-        cfg.referralCommissionPercent || 5,
-        0.06,
-        0.07,
-      ]
+      [pkg.level, cfg.name, pkg.price, cfg.rewardUsdt * cfg.dailyTasks, pkg.validDays, cfg.rewardUsdt, cfg.cooldownSeconds, cfg.dailyTasks, pkg.isPurchasable !== false]
     );
   }
 }

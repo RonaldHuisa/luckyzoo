@@ -3,12 +3,11 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const pool = require("../config/db");
 const { normalizePhone, normalizeCountryCode, getUserProfileBundle, validateWithdrawalAccountPayload } = require("../services/profileService");
-const { buildRouletteStatus, spinRouletteBackend, exchangeRouletteCoinsBackend } = require("../services/rouletteService");
+const { ensureRouletteSchema, normalizePrize, normalizeSpin, pickPrize } = require("../services/rouletteService");
 const { addAlchemyAddressToNetworkWebhooks } = require("../services/alchemyWebhookService");
 const { ensureCreditPointsSchema, awardCreditPointMilestone, adjustCreditPoints } = require("../services/creditPointsService");
 const { ensureRedeemCodeLimitSchema, getRedeemDailyLimitConfig, getUserRedeemDailyStatus, buildDailyLimitMessage, REDEEM_TIMEZONE } = require("../services/redeemCodeLimitService");
 const { assertNoPlanRewardBalanceCap, isNoPlanBalanceCapError } = require("../services/noPlanBalanceCapService");
-const { awardInviteBonus } = require("../services/referralTeamService");
 
 const { generateUniqueReferralCode } = require("../utils/referralUtil");
 const { getClientIp, ensureSecuritySchema, captureRegisterIp, captureLoginIp, ensureIpCanRegister, logSecurityEvent } = require("../services/securityService");
@@ -32,16 +31,11 @@ function signCaptchaPayload(payloadPart) {
         .digest("base64url");
 }
 
-function normalizeCaptchaAnswer(answer) {
-    return String(answer || "").trim().toUpperCase();
-}
-
 function createCaptchaToken(answer) {
     const salt = crypto.randomBytes(10).toString("hex");
-    const normalizedAnswer = normalizeCaptchaAnswer(answer);
     const answerHash = crypto
         .createHmac("sha256", getCaptchaSecret())
-        .update(`${normalizedAnswer}:${salt}`)
+        .update(`${String(answer).trim()}:${salt}`)
         .digest("hex");
 
     const payload = {
@@ -81,10 +75,9 @@ function verifyCaptchaToken(token, answer) {
         return false;
     }
 
-    const normalizedAnswer = normalizeCaptchaAnswer(answer);
     const answerHash = crypto
         .createHmac("sha256", getCaptchaSecret())
-        .update(`${normalizedAnswer}:${payload.salt}`)
+        .update(`${String(answer).trim()}:${payload.salt}`)
         .digest("hex");
 
     const answerBuffer = Buffer.from(answerHash);
@@ -92,22 +85,13 @@ function verifyCaptchaToken(token, answer) {
     return answerBuffer.length === expectedAnswerBuffer.length && crypto.timingSafeEqual(answerBuffer, expectedAnswerBuffer);
 }
 
-function generateLetterCaptcha(length = 6) {
-    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-    let value = "";
-    for (let i = 0; i < length; i += 1) {
-        value += alphabet[Math.floor(Math.random() * alphabet.length)];
-    }
-    return value;
-}
-
 function captcha(req, res) {
-    const answer = generateLetterCaptcha(6);
+    const a = Math.floor(Math.random() * 8) + 2;
+    const b = Math.floor(Math.random() * 8) + 1;
+    const answer = a + b;
 
     return res.json({
-        question: answer,
-        type: "letters",
-        length: 6,
+        question: `${a} + ${b}`,
         token: createCaptchaToken(answer),
     });
 }
@@ -128,84 +112,6 @@ function createToken(user) {
             expiresIn: process.env.JWT_EXPIRES_IN || "7d",
         }
     );
-}
-
-
-async function getActivityFeed(req, res) {
-    try {
-        const withdrawals = await pool.query(`
-            SELECT
-                'withdrawal' AS type,
-                u.id AS user_id,
-                u.referral_code,
-                COALESCE(vip.active_vip_level, 0) AS vip_level,
-                w.amount_to_receive AS amount,
-                0::numeric AS coins,
-                w.created_at
-            FROM withdrawals w
-            JOIN users u ON u.id = w.user_id
-            LEFT JOIN LATERAL (
-                SELECT vp.level AS active_vip_level
-                FROM vip_purchases vp
-                WHERE vp.user_id = u.id
-                  AND vp.status = 'active'
-                  AND (vp.expires_at IS NULL OR vp.expires_at > NOW())
-                ORDER BY vp.level DESC, vp.id DESC
-                LIMIT 1
-            ) vip ON TRUE
-            WHERE w.status IN ('paid','completed','approved')
-              AND COALESCE(w.amount_to_receive,0) > 0
-            ORDER BY w.created_at DESC
-            LIMIT 30
-        `);
-
-        const jackpots = await pool.query(`
-            SELECT
-                'jackpot' AS type,
-                u.id AS user_id,
-                u.referral_code,
-                COALESCE(NULLIF(rs.level, 0), COALESCE(vip.active_vip_level, 0), 0) AS vip_level,
-                0::numeric AS amount,
-                rs.coin_amount AS coins,
-                rs.created_at
-            FROM roulette_spins rs
-            JOIN users u ON u.id = rs.user_id
-            LEFT JOIN LATERAL (
-                SELECT vp.level AS active_vip_level
-                FROM vip_purchases vp
-                WHERE vp.user_id = u.id
-                  AND vp.status = 'active'
-                  AND (vp.expires_at IS NULL OR vp.expires_at > NOW())
-                ORDER BY vp.level DESC, vp.id DESC
-                LIMIT 1
-            ) vip ON TRUE
-            WHERE rs.status = 'completed'
-              AND COALESCE(rs.coin_amount,0) IN (500,1000,2000,5000)
-            ORDER BY rs.created_at DESC
-            LIMIT 30
-        `);
-
-        const items = [...withdrawals.rows, ...jackpots.rows]
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-            .slice(0, 40)
-            .map((item) => ({
-                type: item.type,
-                userId: Number(item.user_id || 0),
-                userCode: item.referral_code || String(item.user_id || ""),
-                vipLevel: Number(item.vip_level || 0),
-                amount: Number(item.amount || 0),
-                coins: Number(item.coins || 0),
-                createdAt: item.created_at,
-            }));
-
-        return res.json({ items });
-    } catch (error) {
-        console.error("ACTIVITY FEED ERROR:", error);
-        return res.status(500).json({
-            message: "Error al cargar actividad.",
-            detail: error.message,
-        });
-    }
 }
 
 async function register(req, res) {
@@ -249,8 +155,6 @@ async function register(req, res) {
     try {
         await client.query("BEGIN");
         await ensureSecuritySchema(client);
-        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS registration_bonus_spins_remaining INTEGER DEFAULT 0 NOT NULL`);
-        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS registration_bonus_spins_granted INTEGER DEFAULT 0 NOT NULL`);
         const requestIp = getClientIp(req);
 
         const existingUser = await client.query(
@@ -353,11 +257,9 @@ async function register(req, res) {
                 referral_code, 
                 referred_by_id,
                 is_admin,
-                credit_points,
-                registration_bonus_spins_remaining,
-                registration_bonus_spins_granted
+                credit_points
             )
-            VALUES ($1, $2, $3, $4, $5, $6, 50, 15, 15)
+            VALUES ($1, $2, $3, $4, $5, $6, 50)
             RETURNING id, email, referral_code, referred_by_id, is_admin, credit_points, created_at
             `,
             [
@@ -384,10 +286,6 @@ async function register(req, res) {
         });
 
         await captureRegisterIp(client, user.id, requestIp);
-
-        if (referredById) {
-            await awardInviteBonus(client, referredById, user.id);
-        }
 
         const generatedWallet = generateBep20Wallet();
 
@@ -615,68 +513,35 @@ async function saveWithdrawalAccount(req, res) {
         return res.status(400).json({ message: validation.message });
     }
 
-    const { network, withdrawalAddress, label } = validation.account;
-    const normalizedAddress = String(withdrawalAddress || "").trim().toLowerCase();
+    const { network, withdrawalAddress, label, isDefault } = validation.account;
     const client = await pool.connect();
-
     try {
         await client.query("BEGIN");
-
-        const existingUserAccount = await client.query(
-            `
-            SELECT id, network, withdrawal_address
-            FROM user_withdrawal_accounts
-            WHERE user_id = $1
-            ORDER BY id ASC
-            LIMIT 1
-            FOR UPDATE
-            `,
+        if (isDefault) {
+            await client.query(
+                `UPDATE user_withdrawal_accounts SET is_default = false WHERE user_id = $1`,
+                [userId]
+            );
+        }
+        const existingCount = await client.query(
+            `SELECT COUNT(*)::int AS total FROM user_withdrawal_accounts WHERE user_id = $1`,
             [userId]
         );
-
-        if (existingUserAccount.rows.length > 0) {
-            await client.query("ROLLBACK");
-            return res.status(409).json({
-                message: "Tu método de retiro ya está registrado y no se puede cambiar.",
-            });
-        }
-
-        const duplicateAddress = await client.query(
-            `
-            SELECT id, user_id
-            FROM user_withdrawal_accounts
-            WHERE LOWER(withdrawal_address) = $1
-            LIMIT 1
-            `,
-            [normalizedAddress]
-        );
-
-        if (duplicateAddress.rows.length > 0) {
-            await client.query("ROLLBACK");
-            return res.status(409).json({
-                message: "Wallet ya usada. Está prohibido multicuentas.",
-            });
-        }
+        const shouldDefault = isDefault || Number(existingCount.rows[0]?.total || 0) === 0;
 
         await client.query(
             `
             INSERT INTO user_withdrawal_accounts
               (user_id, network, label, withdrawal_address, is_default, updated_at)
-            VALUES ($1, $2, $3, $4, true, CURRENT_TIMESTAMP)
+            VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id, network)
+            DO UPDATE SET
+              label = EXCLUDED.label,
+              withdrawal_address = EXCLUDED.withdrawal_address,
+              is_default = EXCLUDED.is_default,
+              updated_at = CURRENT_TIMESTAMP
             `,
-            [userId, network, label || network, withdrawalAddress]
-        );
-
-        await client.query(
-            `
-            UPDATE users
-            SET
-              withdraw_enabled = true,
-              withdraw_enabled_at = COALESCE(withdraw_enabled_at, NOW()),
-              withdraw_enabled_note = 'Wallet de retiro registrada y aprobada automáticamente.'
-            WHERE id = $1
-            `,
-            [userId]
+            [userId, network, label, withdrawalAddress, shouldDefault]
         );
 
         await awardCreditPointMilestone(
@@ -684,31 +549,39 @@ async function saveWithdrawalAccount(req, res) {
             userId,
             70,
             "withdrawal_account_complete",
-            "Método de retiro registrado.",
+            "Cuenta de retiro registrada.",
             { network }
         );
 
         await client.query("COMMIT");
         const bundle = await getUserProfileBundle(userId);
-        return res.json({ message: "Método de retiro registrado correctamente.", ...bundle });
+        return res.json({ message: "Cuenta de retiro guardada correctamente.", ...bundle });
     } catch (error) {
         await client.query("ROLLBACK").catch(() => {});
-        if (error?.code === "23505") {
-            return res.status(409).json({ message: "Wallet ya usada. Está prohibido multicuentas." });
-        }
         console.error("SAVE WITHDRAWAL ACCOUNT ERROR:", error);
-        return res.status(500).json({ message: "Error al guardar método de retiro.", detail: error.message });
+        return res.status(500).json({ message: "Error al guardar cuenta de retiro.", detail: error.message });
     } finally {
         client.release();
     }
 }
 
-
-
 async function deleteWithdrawalAccount(req, res) {
-    return res.status(403).json({
-        message: "El método de retiro no se puede eliminar ni cambiar por seguridad.",
-    });
+    const userId = req.user.userId;
+    const accountId = Number(req.params.accountId);
+    if (!accountId) return res.status(400).json({ message: "Cuenta inválida." });
+
+    try {
+        const result = await pool.query(
+            `DELETE FROM user_withdrawal_accounts WHERE id = $1 AND user_id = $2 RETURNING id`,
+            [accountId, userId]
+        );
+        if (!result.rows.length) return res.status(404).json({ message: "Cuenta de retiro no encontrada." });
+        const bundle = await getUserProfileBundle(userId);
+        return res.json({ message: "Cuenta de retiro eliminada.", ...bundle });
+    } catch (error) {
+        console.error("DELETE WITHDRAWAL ACCOUNT ERROR:", error);
+        return res.status(500).json({ message: "Error al eliminar cuenta de retiro.", detail: error.message });
+    }
 }
 
 async function changePassword(req, res) {
@@ -1024,8 +897,18 @@ async function getRouletteStatus(req, res) {
     const userId = req.user.userId;
     const client = await pool.connect();
     try {
-        const status = await buildRouletteStatus(client, userId);
-        return res.json(status);
+        await ensureRouletteSchema(client);
+        const [userResult, prizesResult, spinsResult] = await Promise.all([
+            client.query(`SELECT id, COALESCE(roulette_points,0) AS roulette_points FROM users WHERE id=$1`, [userId]),
+            client.query(`SELECT * FROM roulette_prizes WHERE is_active=true ORDER BY sort_order ASC, id ASC`),
+            client.query(`SELECT * FROM roulette_spins WHERE user_id=$1 ORDER BY created_at DESC LIMIT 20`, [userId]),
+        ]);
+
+        return res.json({
+            points: Number(userResult.rows[0]?.roulette_points || 0),
+            prizes: prizesResult.rows.map(normalizePrize),
+            history: spinsResult.rows.map(normalizeSpin),
+        });
     } catch (error) {
         console.error("GET ROULETTE STATUS ERROR:", error);
         return res.status(500).json({ message: "Error al cargar ruleta.", detail: error.message });
@@ -1036,50 +919,139 @@ async function getRouletteStatus(req, res) {
 
 async function spinRoulette(req, res) {
     const userId = req.user.userId;
-    const idempotencyKey = req.body?.idempotencyKey || req.get("Idempotency-Key") || null;
     const client = await pool.connect();
     try {
+        await ensureRouletteSchema(client);
         await client.query("BEGIN");
-        const result = await spinRouletteBackend(client, { userId, idempotencyKey });
+
+        const userResult = await client.query(
+            `SELECT id, COALESCE(roulette_points,0) AS roulette_points FROM users WHERE id=$1 FOR UPDATE`,
+            [userId]
+        );
+        if (!userResult.rows.length) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({ message: "Usuario no encontrado." });
+        }
+
+        const currentPoints = Number(userResult.rows[0].roulette_points || 0);
+        if (currentPoints <= 0) {
+            await client.query("ROLLBACK");
+            return res.status(400).json({ message: "No tienes giros disponibles." });
+        }
+
+        const prizesResult = await client.query(`SELECT * FROM roulette_prizes WHERE is_active=true ORDER BY sort_order ASC, id ASC`);
+        const prize = pickPrize(prizesResult.rows);
+        if (!prize) {
+            await client.query("ROLLBACK");
+            return res.status(400).json({ message: "Ruleta no disponible." });
+        }
+
+        const requestedAmount = Number(prize.amount_usdt || 0);
+        const creditPoints = Number(prize.credit_points || 0);
+        const prizeType = prize.prize_type || "withdrawable";
+        let creditedAmount = requestedAmount;
+        let capResult = null;
+
+        if ((prizeType === "withdrawable" || prizeType === "recharge") && requestedAmount > 0) {
+            capResult = await assertNoPlanRewardBalanceCap(client, {
+                userId,
+                balanceType: prizeType === "recharge" ? "recharge" : "withdrawable",
+                amount: requestedAmount,
+            });
+            creditedAmount = Number(capResult.creditedAmount || requestedAmount);
+        }
+
+        await client.query(`UPDATE users SET roulette_points = GREATEST(COALESCE(roulette_points,0)-1,0) WHERE id=$1`, [userId]);
+
+        if (prizeType === "withdrawable" && creditedAmount > 0) {
+            await client.query(
+                `UPDATE users SET withdrawable_usdt=COALESCE(withdrawable_usdt,0)+$1, earnings_balance_usdt=COALESCE(earnings_balance_usdt,0)+$1 WHERE id=$2`,
+                [creditedAmount, userId]
+            );
+        } else if (prizeType === "recharge" && creditedAmount > 0) {
+            await client.query(
+                `UPDATE users SET balance_usdt=COALESCE(balance_usdt,0)+$1, recharge_balance_usdt=COALESCE(recharge_balance_usdt,0)+$1 WHERE id=$2`,
+                [creditedAmount, userId]
+            );
+        } else if (prizeType === "credit_points" && creditPoints > 0) {
+            await adjustCreditPoints(client, {
+                userId,
+                operation: "add",
+                points: creditPoints,
+                reason: `Premio obtenido en ruleta: ${prize.label}`,
+                eventType: "roulette_prize",
+                eventKey: `roulette_spin_pending:${userId}:${Date.now()}`,
+                metadata: { prizeId: prize.id, prizeLabel: prize.label, prizeType },
+            });
+        }
+
+        const spinResult = await client.query(
+            `
+            INSERT INTO roulette_spins(user_id,prize_id,prize_label,prize_type,amount_usdt,credit_points,metadata)
+            VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)
+            RETURNING *
+            `,
+            [userId, prize.id, prize.label, prizeType, creditedAmount, creditPoints, JSON.stringify({ source: "user_spin", requestedAmountUsdt: requestedAmount, creditedAmountUsdt: creditedAmount, partialCredit: Boolean(capResult?.partial) })]
+        );
+
+        if ((prizeType === "withdrawable" || prizeType === "recharge") && creditedAmount > 0) {
+            await client.query(
+                `
+                INSERT INTO account_ledger(user_id,balance_type,direction,type,title,amount_usdt,description,reference_type,reference_id,metadata,status)
+                VALUES ($1,$2,'credit','roulette_prize',$3,$4,$5,'roulette_spin',$6,$7::jsonb,'completed')
+                `,
+                [
+                    userId,
+                    prizeType === "recharge" ? "recharge" : "withdrawable",
+                    "Premio de ruleta",
+                    creditedAmount,
+                    `Premio obtenido en ruleta: ${prize.label}`,
+                    spinResult.rows[0].id,
+                    JSON.stringify({ prizeId: prize.id, prizeLabel: prize.label, prizeType, requestedAmountUsdt: requestedAmount, creditedAmountUsdt: creditedAmount, partialCredit: Boolean(capResult?.partial) }),
+                ]
+            );
+        }
+
+        const remainingResult = await client.query(`SELECT COALESCE(roulette_points,0) AS roulette_points FROM users WHERE id=$1`, [userId]);
+        const historyResult = await client.query(`SELECT * FROM roulette_spins WHERE user_id=$1 ORDER BY created_at DESC LIMIT 20`, [userId]);
+
         await client.query("COMMIT");
+
+        const normalizedPrize = normalizePrize(prize);
+        const responsePrize = capResult?.partial
+            ? {
+                ...normalizedPrize,
+                originalLabel: normalizedPrize.label,
+                label: `${creditedAmount.toFixed(2)} USDT acreditados`,
+                amountUsdt: creditedAmount,
+                requestedAmountUsdt: requestedAmount,
+                partialCredit: true,
+              }
+            : {
+                ...normalizedPrize,
+                creditedAmountUsdt: creditedAmount,
+                requestedAmountUsdt: requestedAmount,
+                partialCredit: false,
+              };
+
         return res.json({
-            message: result.reused ? `Resultado ya registrado: ganaste ${Number(result.reward.coins || 0).toLocaleString("es-PE")} monedas.` : `Ganaste ${Number(result.reward.coins || 0).toLocaleString("es-PE")} monedas.`,
-            reward: result.reward,
-            spin: result.spin,
-            status: result.status,
+            message: capResult?.message || "Giro completado.",
+            prize: responsePrize,
+            spin: normalizeSpin(spinResult.rows[0]),
+            points: Number(remainingResult.rows[0]?.roulette_points || 0),
+            history: historyResult.rows.map(normalizeSpin),
         });
     } catch (error) {
         await client.query("ROLLBACK").catch(() => {});
+        if (isNoPlanBalanceCapError(error)) {
+            return res.status(400).json({ message: error.message, code: error.code });
+        }
         console.error("SPIN ROULETTE ERROR:", error);
-        const httpStatus = ["HOURLY_SPINS_EXHAUSTED", "DAILY_REWARD_COMPLETED"].includes(error.code) ? 400 : 500;
-        return res.status(httpStatus).json({ message: error.message || "Error al girar ruleta.", code: error.code || "ROULETTE_ERROR" });
+        return res.status(500).json({ message: "Error al girar ruleta.", detail: error.message });
     } finally {
         client.release();
     }
 }
-
-async function exchangeRouletteCoins(req, res) {
-    const userId = req.user.userId;
-    const client = await pool.connect();
-    try {
-        await client.query("BEGIN");
-        const result = await exchangeRouletteCoinsBackend(client, userId);
-        await client.query("COMMIT");
-        return res.json({
-            message: `Cambiaste ${Number(result.exchange.coinsSpent || 0).toLocaleString("es-PE")} monedas por ${Number(result.exchange.amountUsdt || 0)} USDT.`,
-            exchange: result.exchange,
-            status: result.status,
-        });
-    } catch (error) {
-        await client.query("ROLLBACK").catch(() => {});
-        console.error("EXCHANGE ROULETTE COINS ERROR:", error);
-        const httpStatus = ["INSUFFICIENT_COINS", "USER_NOT_FOUND"].includes(error.code) ? 400 : 500;
-        return res.status(httpStatus).json({ message: error.message || "Error al cambiar monedas.", code: error.code || "EXCHANGE_ERROR" });
-    } finally {
-        client.release();
-    }
-}
-
 
 module.exports = {
     register,
@@ -1094,6 +1066,4 @@ module.exports = {
   getRedeemCodeStatus,
   getRouletteStatus,
   spinRoulette,
-  exchangeRouletteCoins,
-  getActivityFeed,
 };

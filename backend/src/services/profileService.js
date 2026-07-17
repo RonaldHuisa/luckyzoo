@@ -69,8 +69,7 @@ async function getUserProfileBundle(userId, client = pool) {
         COALESCE(credit_points, 50) AS credit_points,
         COALESCE(withdraw_enabled, false) AS withdraw_enabled,
         withdraw_enabled_at,
-        withdraw_enabled_note,
-        COALESCE(is_admin,false) AS is_admin
+        withdraw_enabled_note
       FROM users
       WHERE id = $1
       LIMIT 1
@@ -118,7 +117,6 @@ async function getUserProfileBundle(userId, client = pool) {
       withdrawEnabled: Boolean(user.withdraw_enabled),
       withdrawEnabledAt: user.withdraw_enabled_at || null,
       withdrawEnabledNote: user.withdraw_enabled_note || '',
-      isAdmin: Boolean(user.is_admin),
       personalDataComplete: isProfileComplete(user),
     } : null,
     withdrawalAccounts,

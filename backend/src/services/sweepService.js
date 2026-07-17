@@ -82,7 +82,7 @@ function getCollectionGasLimit(estimatedGasLimit, network) {
   return withMargin > minimum ? withMargin : minimum;
 }
 
-async function getDepositContext(depositId, client = pool, options = {}) {
+async function getDepositContext(depositId, client = pool) {
   const result = await client.query(
     `
     SELECT
@@ -121,15 +121,15 @@ async function getDepositContext(depositId, client = pool, options = {}) {
     throw new Error("El depósito todavía no está confirmado.");
   }
 
-  if (deposit.sweep_status === "swept" && !options.allowSwept) {
+  if (deposit.sweep_status === "swept") {
     throw new Error("Este depósito ya fue recolectado.");
   }
 
   return deposit;
 }
 
-async function getCollectionStatusForDeposit(depositId, options = {}) {
-  const deposit = await getDepositContext(depositId, pool, options);
+async function getCollectionStatusForDeposit(depositId) {
+  const deposit = await getDepositContext(depositId);
   const network = getPaymentNetwork(deposit.network, { deposit: true });
   const provider = new ethers.JsonRpcProvider(getNetworkRpcUrl(network));
   const collectionWallet = getNetworkCollectionWallet(network);
@@ -190,7 +190,6 @@ async function getCollectionStatusForDeposit(depositId, options = {}) {
       hasEnoughToken: tokenBalance >= amountRaw,
       nativeSymbol: network.nativeSymbol,
       tokenSymbol: network.asset,
-      collectionWallet,
     },
   };
 }

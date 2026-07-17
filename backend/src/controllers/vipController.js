@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const { createReferralCommissions } = require("../services/referralCommissionService");
 const { seedRoyalVipPackages, getLevelConfig, getCooldownLabel } = require("../services/royalAiTaskService");
 
 const CANCELLATION_FEE_PERCENT = 10;
@@ -9,13 +10,7 @@ function money(v) { return Number(v || 0).toFixed(2); }
 
 async function expireOldPurchases(client, userId) {
   await client.query(
-    `UPDATE vip_purchases
-     SET status='expired'
-     WHERE user_id=$1
-       AND status='active'
-       AND expires_at IS NOT NULL
-       AND expires_at < '9999-01-01'::timestamp
-       AND expires_at <= NOW()`,
+    `UPDATE vip_purchases SET status='expired' WHERE user_id=$1 AND status='active' AND expires_at <= NOW()`,
     [userId]
   );
 }
@@ -34,11 +29,10 @@ async function getVipStatus(req, res) {
     if (!userResult.rows.length) return res.status(404).json({ message: "Usuario no encontrado." });
 
     const activePurchases = await client.query(
-      `SELECT vp.id, vp.package_id, vp.level, vp.price_usdt, p.price_usdt AS package_price_usdt, vp.expires_at, vp.status, vp.purchased_at, vp.shots_per_hour, vp.referral_commission_percent
-       FROM vip_purchases vp
-       LEFT JOIN vip_packages p ON p.id = vp.package_id
-       WHERE vp.user_id=$1 AND vp.status='active' AND (vp.expires_at IS NULL OR vp.expires_at > NOW()) AND vp.level BETWEEN 1 AND 5
-       ORDER BY vp.level DESC, vp.expires_at DESC`,
+      `SELECT id, package_id, level, price_usdt, expires_at, status, purchased_at
+       FROM vip_purchases
+       WHERE user_id=$1 AND status='active' AND expires_at > NOW() AND level >= 1
+       ORDER BY level DESC, expires_at DESC`,
       [userId]
     );
     const activePurchase = activePurchases.rows[0] || null;
@@ -47,22 +41,19 @@ async function getVipStatus(req, res) {
     const highestResult = await client.query(
       `SELECT COALESCE(MAX(level),0)::int AS highest_level
        FROM vip_purchases
-       WHERE user_id=$1 AND level BETWEEN 1 AND 5 AND status IN ('active','expired','completed','cancelled','replaced')`,
+       WHERE user_id=$1 AND level >= 1 AND status IN ('active','expired','completed','cancelled','replaced')`,
       [userId]
     );
     const highestPurchasedLevel = Number(highestResult.rows[0]?.highest_level || 0);
 
     const packagesResult = await client.query(
-      `SELECT id,level,name,price_usdt,daily_income_usdt,valid_days,is_purchasable,task_reward_usdt,task_cooldown_seconds,task_cooldown_minutes,daily_tasks,animal_key,plan_type,daily_roulette_spins,roulette_rewards,shots_per_hour,referral_commission_percent,daily_min_rate,daily_max_rate FROM vip_packages WHERE level BETWEEN 0 AND 5 ORDER BY level ASC`
+      `SELECT id,level,name,price_usdt,daily_income_usdt,valid_days,is_purchasable,task_reward_usdt,task_cooldown_seconds,task_cooldown_minutes,daily_tasks FROM vip_packages WHERE level >= 0 ORDER BY level ASC`
     );
     const packages = packagesResult.rows.map((pkg) => {
       const level = Number(pkg.level);
       const cfg = getLevelConfig(level) || {};
       const cooldownSeconds = Number(pkg.task_cooldown_seconds || cfg.cooldownSeconds || 60);
-      const activePrice = activePurchase ? toNumber(activePurchase.package_price_usdt || activePurchase.price_usdt) : 0;
-      const targetPrice = toNumber(pkg.price_usdt);
-      const upgradeCostUsdt = level > activeLevel ? Math.max(targetPrice - activePrice, 0) : targetPrice;
-      const isLockedByProgress = level > 0 && activeLevel > 0 && level < activeLevel;
+      const isLockedByProgress = level > 0 && highestPurchasedLevel > 0 && level < highestPurchasedLevel;
       const hasActivePaidPlan = Boolean(activePurchase);
       return {
         id: pkg.id,
@@ -75,26 +66,15 @@ async function getVipStatus(req, res) {
         taskCooldownMinutes: Math.ceil(cooldownSeconds / 60),
         cooldownLabel: getCooldownLabel(cooldownSeconds),
         dailyTasks: Number(pkg.daily_tasks || cfg.dailyTasks || 0),
-        validDays: Number(pkg.valid_days || 0),
-        animalKey: pkg.animal_key || cfg.animalKey || "pollito",
-        planType: pkg.plan_type || "roulette",
-        dailyRouletteSpins: Number(pkg.daily_roulette_spins || pkg.shots_per_hour || cfg.dailyRouletteSpins || 1),
-        shotsPerHour: Number(pkg.shots_per_hour || cfg.shotsPerHour || cfg.dailyRouletteSpins || 1),
-        referralCommissionPercent: Number(pkg.referral_commission_percent || cfg.referralCommissionPercent || 5),
-        dailyMinRate: Number(pkg.daily_min_rate || 0.06),
-        dailyMaxRate: Number(pkg.daily_max_rate || 0.07),
-        rouletteRewards: pkg.roulette_rewards || cfg.rouletteRewards || [],
+        validDays: Number(pkg.valid_days || 30),
         isPurchasable: Boolean(pkg.is_purchasable),
-        upgradeCostUsdt,
-        isUpgrade: level > activeLevel && activeLevel > 0,
-        isDowngrade: level > 0 && level < activeLevel,
         isActive: level > 0 ? level === activeLevel : !hasActivePaidPlan,
         isIncluded: level === 0,
         expiresAt: level === activeLevel ? activePurchase?.expires_at : null,
         purchasedAt: level === activeLevel ? activePurchase?.purchased_at : null,
         isLockedByProgress,
         hasActivePaidPlan,
-        canBuy: level > 0 && Boolean(pkg.is_purchasable) && !isLockedByProgress && level !== activeLevel,
+        canBuy: level > 0 && Boolean(pkg.is_purchasable) && !isLockedByProgress && !hasActivePaidPlan,
       };
     });
 
@@ -113,8 +93,7 @@ async function getVipStatus(req, res) {
       activePurchase: activePurchase ? {
         id: activePurchase.id,
         level: Number(activePurchase.level),
-        priceUsdt: activePurchase.package_price_usdt || activePurchase.price_usdt,
-        paidUsdt: activePurchase.price_usdt,
+        priceUsdt: activePurchase.price_usdt,
         purchasedAt: activePurchase.purchased_at,
         expiresAt: activePurchase.expires_at,
         cancelRefundUsdt: money(toNumber(activePurchase.price_usdt) * (100 - CANCELLATION_FEE_PERCENT) / 100),
@@ -125,8 +104,8 @@ async function getVipStatus(req, res) {
         concept: "AI Market Training",
         minimumWithdrawUsdt: 10,
         withdrawFeePercent: 10,
-        referralDirectPercent: Number(activePurchase?.referral_commission_percent || 5),
-        referralIndirectPercent: 0,
+        referralDirectPercent: 7,
+        referralIndirectPercent: 2,
         cancellationFeePercent: CANCELLATION_FEE_PERCENT,
         workdays: "lunes a viernes",
         trialWorkdays: "lunes a domingo",
@@ -145,195 +124,76 @@ async function getVipStatus(req, res) {
 async function buyVipPackage(req, res) {
   const userId = getAuthUserId(req);
   const numericLevel = Number(req.body?.level);
-  if (!Number.isInteger(numericLevel) || numericLevel < 1 || numericLevel > 5) {
-    return res.status(400).json({ message: "Selecciona un plan válido." });
-  }
-
+  if (!Number.isInteger(numericLevel) || numericLevel < 1 || numericLevel > 8) return res.status(400).json({ message: "Selecciona un plan válido." });
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     await seedRoyalVipPackages(client);
     await expireOldPurchases(client, userId);
 
-    const pkgResult = await client.query(
-      `SELECT *
-       FROM vip_packages
-       WHERE level=$1 AND level BETWEEN 1 AND 5 AND is_purchasable=true
-       FOR UPDATE`,
-      [numericLevel]
-    );
-
-    if (!pkgResult.rows.length) {
-      await client.query("ROLLBACK");
-      return res.status(404).json({ message: "Plan no disponible." });
-    }
-
+    const pkgResult = await client.query(`SELECT * FROM vip_packages WHERE level=$1 AND is_purchasable=true`, [numericLevel]);
+    if (!pkgResult.rows.length) { await client.query("ROLLBACK"); return res.status(404).json({ message: "Plan no disponible." }); }
     const pkg = pkgResult.rows[0];
 
-    const userResult = await client.query(
-      `SELECT id,balance_usdt FROM users WHERE id=$1 FOR UPDATE`,
-      [userId]
-    );
-
-    if (!userResult.rows.length) {
-      await client.query("ROLLBACK");
-      return res.status(404).json({ message: "Usuario no encontrado." });
-    }
+    const userResult = await client.query(`SELECT id,balance_usdt FROM users WHERE id=$1 FOR UPDATE`, [userId]);
+    if (!userResult.rows.length) { await client.query("ROLLBACK"); return res.status(404).json({ message: "Usuario no encontrado." }); }
 
     const activeResult = await client.query(
-      `SELECT vp.*, p.name AS package_name, p.price_usdt AS package_price_usdt
+      `SELECT vp.id, vp.level, p.name, vp.price_usdt, vp.expires_at
        FROM vip_purchases vp
        LEFT JOIN vip_packages p ON p.id = vp.package_id
-       WHERE vp.user_id=$1
-         AND vp.status='active'
-         AND (vp.expires_at IS NULL OR vp.expires_at > NOW())
-         AND vp.level BETWEEN 1 AND 5
+       WHERE vp.user_id=$1 AND vp.status='active' AND vp.expires_at > NOW() AND vp.level >= 1
        ORDER BY vp.level DESC, vp.expires_at DESC
-       FOR UPDATE OF vp`,
+       LIMIT 1`,
       [userId]
     );
-
-    const activePlans = activeResult.rows;
-    const active = activePlans[0] || null;
-    const activeLevel = active ? Number(active.level) : 0;
-
-    if (active && activeLevel === numericLevel) {
+    if (activeResult.rows.length) {
+      const active = activeResult.rows[0];
       await client.query("ROLLBACK");
-      return res.status(409).json({ message: "Este plan ya está activo." });
+      return res.status(409).json({ message: Number(active.level) === numericLevel ? "Este plan ya está activo." : "Cancela tu plan activo para continuar." });
     }
 
-    if (active && activeLevel > numericLevel) {
+    const highestResult = await client.query(
+      `SELECT COALESCE(MAX(level),0)::int AS highest_level
+       FROM vip_purchases
+       WHERE user_id=$1 AND level >= 1 AND status IN ('active','expired','completed','cancelled','replaced')`,
+      [userId]
+    );
+    const highestPurchasedLevel = Number(highestResult.rows[0]?.highest_level || 0);
+    if (highestPurchasedLevel > 0 && numericLevel < highestPurchasedLevel) {
       await client.query("ROLLBACK");
-      return res.status(403).json({ message: "Ya tienes un plan superior activo." });
+      return res.status(403).json({ message: "Este plan no está disponible para tu cuenta." });
     }
-
-    const targetPrice = toNumber(pkg.price_usdt);
-    const activePackagePrice = active ? toNumber(active.package_price_usdt || active.price_usdt) : 0;
-    const amountToPay = Number(Math.max(targetPrice - activePackagePrice, 0).toFixed(8));
 
     const balance = toNumber(userResult.rows[0].balance_usdt);
-    if (balance < amountToPay) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({
-        message: `Saldo insuficiente. Necesitas ${money(amountToPay)} USDT para ${active ? "hacer upgrade" : "activar este plan"}.`,
-        requiredUsdt: amountToPay,
-      });
-    }
-
-    const isUpgrade = Boolean(active && activeLevel < numericLevel);
-    const replacedIds = activePlans.map((row) => Number(row.id));
-
-    if (isUpgrade && replacedIds.length) {
-      await client.query(
-        `UPDATE vip_purchases
-         SET status='replaced',
-             replaced_at=NOW(),
-             metadata=COALESCE(metadata,'{}'::jsonb) || $2::jsonb
-         WHERE id = ANY($1::int[])`,
-        [
-          replacedIds,
-          JSON.stringify({
-            replacedByUpgradeTo: numericLevel,
-            upgradeTargetPackageId: pkg.id,
-            upgradeAt: new Date().toISOString(),
-          }),
-        ]
-      );
-    }
-
-    const permanentExpiresAt = "9999-12-31 23:59:59";
+    const price = toNumber(pkg.price_usdt);
+    if (balance < price) { await client.query("ROLLBACK"); return res.status(400).json({ message: "Saldo insuficiente. Recarga USDT para activar este plan." }); }
 
     const purchaseResult = await client.query(
-      `INSERT INTO vip_purchases(
-          user_id,
-          package_id,
-          level,
-          price_usdt,
-          daily_income_usdt,
-          purchased_at,
-          expires_at,
-          status,
-          shots_per_hour,
-          referral_commission_percent,
-          metadata
-       )
-       VALUES ($1,$2,$3,$4,$5,NOW(),$6::timestamp,'active',$7,$8,$9::jsonb)
-       RETURNING *`,
-      [
-        userId,
-        pkg.id,
-        pkg.level,
-        amountToPay,
-        pkg.daily_income_usdt,
-        permanentExpiresAt,
-        Number(pkg.shots_per_hour || pkg.daily_roulette_spins || 1),
-        Number(pkg.referral_commission_percent || 5),
-        JSON.stringify({
-          activationType: isUpgrade ? "upgrade" : "activation",
-          permanent: true,
-          previousLevel: activeLevel,
-          previousPurchaseIds: replacedIds,
-          targetPackagePriceUsdt: targetPrice,
-          amountPaidUsdt: amountToPay,
-        }),
-      ]
+      `INSERT INTO vip_purchases(user_id, package_id, level, price_usdt, daily_income_usdt, purchased_at, expires_at, status, metadata)
+       VALUES ($1,$2,$3,$4,$5,NOW(),NOW()+($6::int * INTERVAL '1 day'),'active',$7::jsonb) RETURNING *`,
+      [userId, pkg.id, pkg.level, pkg.price_usdt, pkg.daily_income_usdt, pkg.valid_days, JSON.stringify({ activationType: highestPurchasedLevel >= numericLevel ? "renewal" : "activation" })]
     );
-
     const purchase = purchaseResult.rows[0];
 
     await client.query(
-      `UPDATE users
-       SET balance_usdt=COALESCE(balance_usdt,0)-$1,
-           recharge_balance_usdt=GREATEST(COALESCE(recharge_balance_usdt,0)-$1,0),
-           vip_level=$2,
-           vip_purchased_at=NOW(),
-           vip_expires_at=$3::timestamp
-       WHERE id=$4`,
-      [amountToPay, pkg.level, permanentExpiresAt, userId]
+      `UPDATE users SET balance_usdt=COALESCE(balance_usdt,0)-$1, recharge_balance_usdt=GREATEST(COALESCE(recharge_balance_usdt,0)-$1,0), vip_level=$2, vip_purchased_at=NOW(), vip_expires_at=$3 WHERE id=$4`,
+      [pkg.price_usdt, pkg.level, purchase.expires_at, userId]
     );
-
     await client.query(
       `INSERT INTO account_ledger(user_id,balance_type,direction,type,title,amount_usdt,description,reference_type,reference_id,metadata,status)
-       VALUES ($1,'recharge','debit',$2,$3,$4,$5,'vip_purchase',$6,$7::jsonb,'completed')`,
-      [
-        userId,
-        isUpgrade ? "level_upgrade" : "level_purchase",
-        isUpgrade ? `Upgrade a ${pkg.name}` : `Activación ${pkg.name}`,
-        amountToPay,
-        isUpgrade
-          ? `Upgrade de VIP ${activeLevel} a ${pkg.name}. Se pagó solo la diferencia.`
-          : `Plan ${pkg.name} activado de forma permanente.`,
-        purchase.id,
-        JSON.stringify({
-          level: pkg.level,
-          packageId: pkg.id,
-          permanent: true,
-          expiresAt: permanentExpiresAt,
-          activationType: isUpgrade ? "upgrade" : "activation",
-          previousLevel: activeLevel,
-          amountPaidUsdt: amountToPay,
-          fullPackagePriceUsdt: targetPrice,
-        }),
-      ]
+       VALUES ($1,'recharge','debit','level_purchase',$2,$3,$4,'vip_purchase',$5,$6::jsonb,'completed')`,
+      [userId, `Activación ${pkg.name}`, pkg.price_usdt, `Plan ${pkg.name} activado.`, purchase.id, JSON.stringify({ level: pkg.level, packageId: pkg.id, validDays: pkg.valid_days, expiresAt: purchase.expires_at })]
     );
 
+    await createReferralCommissions(client, userId, "level_purchase", purchase.id, pkg.price_usdt, { purchasedLevel: Number(pkg.level), purchasedPackageId: Number(pkg.id) });
     await client.query("COMMIT");
-
-    return res.status(201).json({
-      message: isUpgrade
-        ? `Upgrade a ${pkg.name} realizado correctamente. Pagaste ${money(amountToPay)} USDT de diferencia.`
-        : `Plan ${pkg.name} activado permanentemente.`,
-      purchase,
-      amountPaidUsdt: amountToPay,
-      permanent: true,
-    });
+    return res.status(201).json({ message: `Plan ${pkg.name} activado correctamente.`, purchase });
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {});
     console.error("BUY ROYAL LEVEL ERROR:", error);
     return res.status(500).json({ message: "Error al activar plan.", detail: error.message });
-  } finally {
-    client.release();
-  }
+  } finally { client.release(); }
 }
 
 async function cancelActiveVipPackage(req, res) {
@@ -348,7 +208,7 @@ async function cancelActiveVipPackage(req, res) {
       `SELECT vp.*, p.name
        FROM vip_purchases vp
        JOIN vip_packages p ON p.id = vp.package_id
-       WHERE vp.user_id=$1 AND vp.status='active' AND vp.expires_at > NOW() AND vp.level BETWEEN 1 AND 5
+       WHERE vp.user_id=$1 AND vp.status='active' AND vp.expires_at > NOW() AND vp.level >= 1
        ORDER BY vp.level DESC, vp.expires_at DESC
        FOR UPDATE`,
       [userId]

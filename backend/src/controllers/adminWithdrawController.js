@@ -1,6 +1,5 @@
 const pool = require("../config/db");
 const { sendUsdtWithdrawal } = require("../services/withdrawPaymentService");
-const { awardWithdrawalReferralCommission } = require("../services/referralTeamService");
 
 function getLimit(value, fallback = 12, max = 100) {
   const n = Number(value || fallback);
@@ -244,16 +243,12 @@ async function approveWithdrawal(req, res) {
             ]
         );
 
-        const paidWithdrawal = updateResult.rows[0];
-        const referralCommission = await awardWithdrawalReferralCommission(client, paidWithdrawal);
-
         await client.query("COMMIT");
 
         return res.json({
             message: "Retiro aprobado y pagado correctamente.",
             withdrawal: updateResult.rows[0],
             txHash: payment.txHash,
-            referralCommission: referralCommission || null,
         });
     } catch (error) {
         try {

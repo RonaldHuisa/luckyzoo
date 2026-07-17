@@ -2,7 +2,7 @@ const pool = require("../config/db");
 
 const SUSPICIOUS_IP_THRESHOLD = Number(process.env.SUSPICIOUS_IP_THRESHOLD || 5);
 const REVIEW_IP_THRESHOLD = Number(process.env.REVIEW_IP_THRESHOLD || 3);
-const MAX_REGISTER_ACCOUNTS_PER_IP = Number(process.env.MAX_REGISTER_ACCOUNTS_PER_IP || 1);
+const MAX_REGISTER_ACCOUNTS_PER_IP = Number(process.env.MAX_REGISTER_ACCOUNTS_PER_IP || 5);
 const MULTIACCOUNT_WITHDRAW_IP_LIMIT = Number(process.env.MULTIACCOUNT_WITHDRAW_IP_LIMIT || 5);
 
 function getClientIp(req) {
@@ -200,7 +200,7 @@ async function ensureIpCanRegister(clientOrPool, ipAddress) {
       ok: false,
       totalAccounts,
       limit: MAX_REGISTER_ACCOUNTS_PER_IP,
-      message: "Está prohibido las multicuentas.",
+      message: "No se puede completar el registro desde esta conexión. Intenta más tarde o contacta con soporte.",
     };
   }
 

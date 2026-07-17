@@ -320,10 +320,9 @@ async function countQualifiedPlanReferralsForWeek(userId, weekWindow, clientOrPo
     SELECT COUNT(*)::int AS total
     FROM users u
     WHERE u.referred_by_id = $1
-      -- Solo cuenta personas invitadas dentro del periodo semanal vigente.
-      -- En la ventana especial del 12/07, empieza a las 12:00 GMT-5.
-      AND u.created_at >= ($2::timestamptz AT TIME ZONE current_setting('TIMEZONE'))
-      AND u.created_at < ($3::timestamptz AT TIME ZONE current_setting('TIMEZONE'))
+      -- La fecha de registro del invitado no limita la tarea semanal.
+      -- El punto se genera cuando el referido adquiere y activa un plan
+      -- dentro del periodo semanal vigente.
       AND COALESCE(u.withdraw_enabled, false) = true
       AND COALESCE(NULLIF(TRIM(u.full_name), ''), '') <> ''
       AND COALESCE(NULLIF(TRIM(u.phone_country_code), ''), '') <> ''
@@ -341,6 +340,8 @@ async function countQualifiedPlanReferralsForWeek(userId, weekWindow, clientOrPo
           AND vp.level >= 1
           AND vp.status = 'active'
           AND vp.expires_at > NOW()
+          AND vp.purchased_at >= ($2::timestamptz AT TIME ZONE current_setting('TIMEZONE'))
+          AND vp.purchased_at < ($3::timestamptz AT TIME ZONE current_setting('TIMEZONE'))
         LIMIT 1
       )
     `,

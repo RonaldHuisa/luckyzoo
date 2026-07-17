@@ -11,96 +11,9 @@ const {
 const { ensureNotBanned, ensureWithdrawAllowedByRegisterIp, logSecurityEvent } = require("../services/securityService");
 const { getUserProfileBundle, isProfileComplete } = require("../services/profileService");
 
-const WITHDRAW_FEE_PERCENT = 5;
-const MIN_WITHDRAW_USDT = 1;
+const WITHDRAW_FEE_PERCENT = 10;
+const MIN_WITHDRAW_USDT = 10;
 const AUTO_WITHDRAW_MAX_USDT = 100;
-const WITHDRAW_COOLDOWN_HOURS = 24;
-const WITHDRAW_COOLDOWN_MS = WITHDRAW_COOLDOWN_HOURS * 60 * 60 * 1000;
-
-function buildWithdrawCooldown(row) {
-    if (!row) {
-        return {
-            active: false,
-            remainingMs: 0,
-            nextWithdrawAt: null,
-            lastWithdrawAt: null,
-        };
-    }
-
-    const lastWithdrawAt = row.created_at || row.last_withdraw_at || null;
-    const nextWithdrawAt = row.next_withdraw_at || null;
-    const remainingMs = Math.max(Number(row.remaining_ms || 0), 0);
-
-    return {
-        active: remainingMs > 0,
-        remainingMs,
-        nextWithdrawAt,
-        lastWithdrawAt,
-    };
-}
-
-async function getWithdrawCooldown(client, userId) {
-    const result = await client.query(
-        `
-        SELECT
-            id,
-            status,
-            created_at,
-            created_at + ($2::text || ' hours')::interval AS next_withdraw_at,
-            GREATEST(
-                FLOOR(EXTRACT(EPOCH FROM ((created_at + ($2::text || ' hours')::interval) - NOW())) * 1000),
-                0
-            )::bigint AS remaining_ms
-        FROM withdrawals
-        WHERE user_id = $1
-          AND status IN ('pending', 'approved', 'paid', 'processing_auto')
-        ORDER BY created_at DESC, id DESC
-        LIMIT 1
-        `,
-        [userId, WITHDRAW_COOLDOWN_HOURS]
-    );
-
-    return buildWithdrawCooldown(result.rows[0] || null);
-}
-
-
-async function ensureWithdrawReferralLimitSchema(client = pool) {
-    await client.query(`
-        ALTER TABLE users
-        ADD COLUMN IF NOT EXISTS withdraw_required_referrals INTEGER DEFAULT 0 NOT NULL
-    `);
-}
-
-async function getDirectReferralsCount(client, userId) {
-    const result = await client.query(
-        `
-        SELECT COUNT(*)::int AS total_direct_referrals
-        FROM users
-        WHERE referred_by_id = $1
-        `,
-        [userId]
-    );
-
-    return Number(result.rows[0]?.total_direct_referrals || 0);
-}
-
-function buildReferralLimitStatus(requiredReferrals, currentReferrals) {
-    const required = Math.max(0, Number(requiredReferrals || 0));
-    const current = Math.max(0, Number(currentReferrals || 0));
-    const missing = Math.max(required - current, 0);
-
-    return {
-        requiredReferrals: required,
-        currentReferrals: current,
-        missingReferrals: missing,
-        blocked: missing > 0,
-        message: missing > 0
-            ? `Debes invitar ${missing} referidos más y poder retirar.`
-            : "Sin límite de referidos para retiro.",
-    };
-}
-
-
 
 
 const WITHDRAW_DAY_NAMES = {
@@ -412,7 +325,6 @@ async function getCurrentWithdrawPeriod(client) {
 async function getWithdrawInfo(req, res) {
     try {
         const userId = req.user.userId;
-        await ensureWithdrawReferralLimitSchema(pool);
 
         const result = await pool.query(
             `
@@ -429,7 +341,6 @@ async function getWithdrawInfo(req, res) {
                 COALESCE(u.withdraw_enabled, false) AS withdraw_enabled,
                 u.withdraw_enabled_at,
                 u.withdraw_enabled_note,
-                COALESCE(u.withdraw_required_referrals,0) AS withdraw_required_referrals,
                 COALESCE(active_tree.active_vip_level, 0) AS active_vip_level,
                 active_tree.active_vip_name,
                 active_tree.first_vip_purchased_at,
@@ -480,35 +391,39 @@ async function getWithdrawInfo(req, res) {
             totalVipInvested: policyTotals.totalVipInvested,
             totalRequestedBefore: policyTotals.totalRequestedBefore,
         });
-        const withdrawCooldown = await getWithdrawCooldown(pool, userId);
-        const directReferralsCount = await getDirectReferralsCount(pool, userId);
-        const referralLimitStatus = buildReferralLimitStatus(user.withdraw_required_referrals, directReferralsCount);
 
-        const personalDataComplete = true;
+        const personalDataComplete = Boolean(profileBundle.profile?.personalDataComplete || isProfileComplete(user));
         const hasWithdrawalAccount = Boolean(profileBundle.withdrawalAccounts.length);
-        const groupValidated = true;
+        const groupValidated = Boolean(user.withdraw_enabled);
         const canWithdraw =
             !userSecurity.isBanned &&
             !userSecurity.isSuspicious &&
             hasActiveInvestment &&
+            withdrawDayPolicy.allowedToday &&
+            isWithdrawWindowOpen() &&
+            personalDataComplete &&
             hasWithdrawalAccount &&
-            !withdrawCooldown.active &&
-            !referralLimitStatus.blocked;
+            groupValidated;
 
-        let withdrawRequirementMessage = "Puedes solicitar tu retiro.";
+        let withdrawRequirementMessage = withdrawDayPolicy.message;
         if (!hasActiveInvestment) withdrawRequirementMessage = "Activa un nivel para habilitar retiros.";
-        else if (!hasWithdrawalAccount) withdrawRequirementMessage = "Registra tu método de retiro antes de continuar.";
-        else if (referralLimitStatus.blocked) withdrawRequirementMessage = referralLimitStatus.message;
-        else if (withdrawCooldown.active) withdrawRequirementMessage = "Ya realizaste un retiro. Podrás volver a retirar cuando termine el contador.";
+        else if (!personalDataComplete) withdrawRequirementMessage = "Completa tus datos personales antes de retirar.";
+        else if (!hasWithdrawalAccount) withdrawRequirementMessage = "Registra una cuenta de retiro antes de continuar.";
+        else if (!groupValidated) withdrawRequirementMessage = "Tu cuenta de retiro está pendiente de validación por soporte.";
+        else if (!isWithdrawWindowOpen()) withdrawRequirementMessage = `Los retiros están disponibles únicamente en horario ${WITHDRAW_WINDOW_GMT5.label}.`;
         if (userSecurity.isBanned) withdrawRequirementMessage = userSecurity.bannedReason || "Cuenta no habilitada para retiros.";
         if (userSecurity.isSuspicious) withdrawRequirementMessage = userSecurity.suspiciousReason || "Cuenta en revisión de seguridad.";
-return res.json({
+
+        const withdrawAmountOptions = await getWithdrawAmountOptions(pool);
+
+        return res.json({
             available: user.withdrawable_usdt || "0",
             supportedNetworks: listPaymentNetworks().filter((item) => item.withdrawEnabled),
             feePercent: WITHDRAW_FEE_PERCENT,
-            minWithdraw: MIN_WITHDRAW_USDT,
+            minWithdraw: getNetworkMinWithdraw(paymentNetwork),
             withdrawalAccounts: profileBundle.withdrawalAccounts,
-                        personalDataComplete,
+            withdrawAmountOptions,
+            personalDataComplete,
             hasWithdrawalAccount,
             groupValidated,
             withdrawalReady: canWithdraw,
@@ -521,8 +436,6 @@ return res.json({
             activeVipLevel: Number(user.active_vip_level || 0),
             activeVipName: user.active_vip_name || withdrawDayPolicy.activeVipName,
             withdrawRequirementMessage,
-            withdrawCooldown,
-            referralLimitStatus,
             withdrawalPolicy,
             userSecurity,
             profile: profileBundle.profile,
@@ -624,17 +537,18 @@ async function createWithdrawRequest(req, res) {
             });
         }
 
-        const amountText = String(amount || "").trim();
-        if (!/^\d+(\.\d{1,2})?$/.test(amountText)) {
-            return res.status(400).json({ message: "El monto solo puede tener máximo 2 decimales." });
-        }
-
-        const amountNumber = toNumber(amountText);
+        const amountNumber = toNumber(amount);
         if (!Number.isFinite(amountNumber) || amountNumber <= 0) {
             return res.status(400).json({ message: "Selecciona un monto válido." });
         }
 
         await client.query("BEGIN");
+
+        const withdrawAmountOptions = await getWithdrawAmountOptions(client);
+        if (!isAllowedWithdrawAmount(amountNumber, withdrawAmountOptions)) {
+            await client.query("ROLLBACK");
+            return res.status(400).json({ message: "Selecciona uno de los montos disponibles para retiro." });
+        }
 
         const accountResult = await client.query(
             `
@@ -655,7 +569,7 @@ async function createWithdrawRequest(req, res) {
         const paymentNetwork = getPaymentNetwork(withdrawalAccount.network || "BEP20-USDT", { withdraw: true });
         const withdrawalAddress = withdrawalAccount.withdrawal_address;
         const withdrawFeePercent = WITHDRAW_FEE_PERCENT;
-        const minWithdrawUsdt = MIN_WITHDRAW_USDT;
+        const minWithdrawUsdt = getNetworkMinWithdraw(paymentNetwork);
 
         if (!isValidWithdrawalAddress(withdrawalAddress, paymentNetwork)) {
             await client.query("ROLLBACK");
@@ -665,18 +579,30 @@ async function createWithdrawRequest(req, res) {
         if (amountNumber < minWithdrawUsdt) {
             await client.query("ROLLBACK");
             return res.status(400).json({
-                message: `El monto mínimo de retiro es ${minWithdrawUsdt.toFixed(2)} USDT.`,
+                message: `El monto mínimo de retiro para ${paymentNetwork.code} es ${minWithdrawUsdt} USDT.`,
             });
         }
 
-        const withdrawCooldown = await getWithdrawCooldown(client, userId);
+        const period = await getCurrentWithdrawPeriod(client);
 
-        if (withdrawCooldown.active) {
+        const existingWithdrawalResult = await client.query(
+            `
+            SELECT id, status, created_at
+            FROM withdrawals
+            WHERE user_id = $1
+                AND created_at >= $2
+                AND created_at < $3
+                AND status IN ('pending', 'approved', 'paid', 'processing_auto')
+            LIMIT 1
+            `,
+            [userId, period.period_start, period.period_end]
+        );
+
+        if (existingWithdrawalResult.rows.length > 0) {
             await client.query("ROLLBACK");
-            return res.status(429).json({
-                message: "Solo puedes retirar una vez cada 24 horas.",
-                withdrawCooldown,
-                nextWithdrawAt: withdrawCooldown.nextWithdrawAt,
+            return res.status(400).json({
+                message: "Solo puedes realizar un retiro por reinicio diario.",
+                nextResetAt: period.period_end,
             });
         }
 
@@ -695,7 +621,6 @@ async function createWithdrawRequest(req, res) {
                 u.phone_number,
                 COALESCE(u.withdraw_enabled, false) AS withdraw_enabled,
                 u.withdraw_enabled_note,
-                COALESCE(u.withdraw_required_referrals,0) AS withdraw_required_referrals,
                 COALESCE(active_tree.active_vip_level, 0) AS active_vip_level,
                 active_tree.active_vip_name,
                 active_tree.first_vip_purchased_at,
@@ -747,13 +672,33 @@ async function createWithdrawRequest(req, res) {
             return res.status(400).json({ message: "Activa un nivel para habilitar retiros." });
         }
 
-        const directReferralsCount = await getDirectReferralsCount(client, userId);
-        const referralLimitStatus = buildReferralLimitStatus(user.withdraw_required_referrals, directReferralsCount);
-        if (referralLimitStatus.blocked) {
+        if (!isProfileComplete(user)) {
+            await client.query("ROLLBACK");
+            return res.status(400).json({ message: "Completa tus datos personales antes de retirar.", action: "complete_profile" });
+        }
+
+        if (!Boolean(user.withdraw_enabled)) {
+            await client.query("ROLLBACK");
+            return res.status(403).json({
+                message: "Tu cuenta de retiro está pendiente de validación por soporte.",
+                action: "contact_support",
+            });
+        }
+
+        const withdrawDayPolicy = buildWithdrawDayPolicy(user.active_vip_level);
+
+        if (!withdrawDayPolicy.allowedToday) {
+            await client.query("ROLLBACK");
+            return res.status(400).json({ message: withdrawDayPolicy.message, withdrawalDayAllowed: false, withdrawalDayPolicy });
+        }
+
+        if (!isWithdrawWindowOpen()) {
             await client.query("ROLLBACK");
             return res.status(400).json({
-                message: referralLimitStatus.message,
-                referralLimitStatus,
+                message: `Los retiros están disponibles únicamente en horario ${WITHDRAW_WINDOW_GMT5.label}.`,
+                withdrawalWindowAllowed: false,
+                withdrawalDayAllowed: true,
+                withdrawalDayPolicy: withdrawDayPolicy,
             });
         }
 
@@ -884,13 +829,6 @@ async function createWithdrawRequest(req, res) {
         await client.query("COMMIT");
 
         const createdWithdrawal = withdrawalResult.rows[0];
-        const createdAtMs = new Date(createdWithdrawal.created_at).getTime();
-        const responseWithdrawCooldown = {
-            active: true,
-            remainingMs: WITHDRAW_COOLDOWN_MS,
-            lastWithdrawAt: createdWithdrawal.created_at,
-            nextWithdrawAt: new Date(createdAtMs + WITHDRAW_COOLDOWN_MS).toISOString(),
-        };
 
         if (!shouldAutoPay) {
             return res.status(201).json({
@@ -902,7 +840,6 @@ async function createWithdrawRequest(req, res) {
                 approvalRequired: true,
                 autoPaid: false,
                 autoWithdrawMaxUsdt: AUTO_WITHDRAW_MAX_USDT,
-                withdrawCooldown: responseWithdrawCooldown,
                 withdrawalPolicy: { ...withdrawalPolicy, policyReductionAmount, amountToReceiveBeforePolicy, amountToReceive },
             });
         }
@@ -920,7 +857,6 @@ async function createWithdrawRequest(req, res) {
                 approvalRequired: false,
                 autoPaid: true,
                 autoWithdrawMaxUsdt: AUTO_WITHDRAW_MAX_USDT,
-                withdrawCooldown: responseWithdrawCooldown,
                 withdrawalPolicy: { ...withdrawalPolicy, policyReductionAmount, amountToReceiveBeforePolicy, amountToReceive },
             });
         } catch (paymentError) {
@@ -936,7 +872,6 @@ async function createWithdrawRequest(req, res) {
                 autoPaid: false,
                 autoFailed: true,
                 autoWithdrawMaxUsdt: AUTO_WITHDRAW_MAX_USDT,
-                withdrawCooldown: responseWithdrawCooldown,
                 withdrawalPolicy: { ...withdrawalPolicy, policyReductionAmount, amountToReceiveBeforePolicy, amountToReceive },
             });
         }
